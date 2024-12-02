@@ -1,0 +1,29 @@
+Timer unit: 1e-06 s
+
+Total time: 285.248 s
+File: savetraining.py
+Function: main at line 195
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   195                                               @profile
+   196                                               def main(self):
+   245     15144   17902925.5   1182.2      6.3                  local_edge = self.make_localedge_numpy_agents(sub_graph_node, self.env.connect_dict)
+   246     15144    8914555.2    588.7      3.1                  rows_common, rows_local = self.make_rows_agents(sub_graph_node, abst_array, self.env.connect_dict)
+   247     15144    2364327.1    156.1      0.8                  each_info = self.make_each_info(pre_each_info, rows_local)
+
+   249     15144   37617235.5   2484.0     13.2                  action = policy.epsilon_greedy(observation, (local_edge, rows_common, each_info)) # get next action from policy # GNN 14.8%
+
+   251     15144   38656221.3   2552.6     13.6                  observation_next, reward, terminated, truncated, info_next = self.env.step(action) # do action
+
+   254     15144     947801.6     62.6      0.3                  sub_graph_node_next, abst_array_next, pre_each_info_next = self.get_nodes(observation_next, node_info_next)
+   255     15144   17955366.0   1185.6      6.3                  local_edge_next = self.make_localedge_numpy_agents(sub_graph_node_next, self.env.connect_dict)
+   256     15143    8993180.3    593.9      3.2                  rows_common_next, rows_local_next = self.make_rows_agents(sub_graph_node_next, abst_array_next, self.env.connect_dict)
+   257     15143    2360885.5    155.9      0.8                  each_info_next = self.make_each_info(pre_each_info_next, rows_local_next)
+   272     30118    3433310.5    114.0      1.2                          self.replay_buffer.add(
+   290      2996  110502864.2  36883.5     38.7                      policy.train_batch(batch=self.replay_buffer.sample(BATCH_SIZE)) # TRAIN from replay # GNN 73.0%
+   317      3926    4683928.0   1193.1      1.6                      local_edge = self.make_localedge_numpy_agents(sub_graph_node, self.env.connect_dict)
+   318      3926    2327136.9    592.8      0.8                      rows_common, rows_local = self.make_rows_agents(sub_graph_node, abst_array, self.env.connect_dict)
+   319      3926     610681.8    155.5      0.2                      each_info = self.make_each_info(pre_each_info, rows_local)
+   321      3926    9848585.5   2508.6      3.5                      action = policy.target_greedy(observation, (local_edge, rows_common, each_info)) # GNN4.9%
+   323      3926   10173025.1   2591.2      3.6                      observation_next, reward, terminated, truncated, info_next = self.env.step(action) 

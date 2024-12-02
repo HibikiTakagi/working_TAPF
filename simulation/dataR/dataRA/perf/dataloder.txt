@@ -1,0 +1,146 @@
+Timer unit: 1e-06 s
+
+Total time: 112.06 s
+File: /working/AGV_20240115/simulation/QNet.py
+Function: make_gnn_dataset at line 529
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   529                                               @profile
+   530                                               def make_gnn_dataset(self, nodes_info, nodes_float, connect):
+   531    520320   92502883.4    177.8     82.5          edges_index = self.make_localedge(nodes_float, connect)
+   532    520320   19557436.8     37.6     17.5          return Data(x=nodes_info, edge_index=edges_index)
+
+Total time: 313.046 s
+File: /working/AGV_20240115/simulation/QNet.py
+Function: forward at line 534
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   534                                               @profile
+   535                                               def forward(self, x):
+   536                                                   #### Graph #####
+   537                                                   #print(x.shape)
+   538      2187       4754.2      2.2      0.0          batch_num = x.shape[0]
+   539      2187      23541.3     10.8      0.0          x_reshape = torch.reshape(x, (batch_num, KNN_AGENTS, -1))
+   540                                                   #print(x_reshape.shape)
+   541      2187      52161.3     23.9      0.0          x_split = torch.split(x_reshape, (self.startnode_dims,self.destnode_dims,self.fromnodes,self.tonodes, self.elsedim), dim=2)
+   542      2187      12899.2      5.9      0.0          x_start_infos = torch.reshape(x_split[0], (batch_num, KNN_AGENTS, self.fromnodes, -1))
+   543      2187       8864.7      4.1      0.0          x_dest_infos = torch.reshape(x_split[1], (batch_num, KNN_AGENTS, self.tonodes, -1))
+   544      2187        657.4      0.3      0.0          x_start_graphs = x_split[2]
+   545      2187        505.5      0.2      0.0          x_dest_graphs = x_split[3]
+   546      2187        471.5      0.2      0.0          x_elses = x_split[4]
+   547                                           
+   548      2187        741.0      0.3      0.0          x_feat = []
+   549                                           
+   550      2187        541.1      0.2      0.0          start_datasets = []
+   551      2187        561.0      0.3      0.0          dest_datasets = []
+   552                                           
+   553                                                   #print(x_start_infos.shape)
+   554                                           
+   555     67227      19032.6      0.3      0.0          for batch in range(batch_num):
+   556     65040     477189.4      7.3      0.2              x_start_info = x_start_infos[batch]
+   557     65040     129923.3      2.0      0.0              x_dest_info = x_dest_infos[batch]
+   558     65040     117988.8      1.8      0.0              x_start_graph = x_start_graphs[batch]
+   559     65040     116850.1      1.8      0.0              x_dest_graph = x_dest_graphs[batch]
+   560                                                       #x_else = x_elses[batch]
+   561                                           
+   562    325200     135314.5      0.4      0.0              for robot in range(KNN_AGENTS):
+   563    260160    1341110.8      5.2      0.4                  x_start_info_robot = x_start_info[robot]
+   564    260160     437044.8      1.7      0.1                  x_dest_info_robot = x_dest_info[robot]
+   565    260160     585807.0      2.3      0.2                  x_start_graph_robot = x_start_graph[robot]
+   566    260160     455205.8      1.7      0.1                  x_dest_graph_robot = x_dest_graph[robot]
+   567                                                           #x_else_robot = x_else[robot]
+   568                                           
+   569    260160   57515188.9    221.1     18.4                  start_datasets.append(self.make_gnn_dataset(x_start_info_robot, x_start_graph_robot, CONNECTDICT))
+   570    260160   57653556.0    221.6     18.4                  dest_datasets.append(self.make_gnn_dataset(x_dest_info_robot, x_dest_graph_robot, CONNECTDICT))
+   571                                           
+   572      2187     113712.2     52.0      0.0          start_loader = DataLoader(start_datasets, batch_size=batch_num, shuffle=False)
+   573      2187      71116.6     32.5      0.0          dest_loader = DataLoader(dest_datasets, batch_size=batch_num, shuffle=False)
+   574                                           
+   575      2187        565.4      0.3      0.0          x_start_infos_after_gnn = []
+   576     10935   14789894.8   1352.5      4.7          for start_data in start_loader:
+   577      8748   65851315.0   7527.6     21.0              x_start = self.state_graph_l1(start_data.x, start_data.edge_index)
+   578      8748      99951.2     11.4      0.0              x_start = F.relu(x_start)
+   579      8748       7523.4      0.9      0.0              x_start_infos_after_gnn.append(x_start)
+   580                                                   
+   581      2187        602.0      0.3      0.0          x_dest_infos_after_gnn = []
+   582     10932   13661320.0   1249.7      4.4          for dest_data in dest_loader:
+   583      8746   60303330.7   6895.0     19.3              x_dest = self.dest_graph_l1(dest_data.x, dest_data.edge_index)
+   584      8745      94865.3     10.8      0.0              x_dest = F.relu(x_dest)
+   585      8745       6915.6      0.8      0.0              x_dest_infos_after_gnn.append(x_dest)
+   586                                                   
+   587      2186      36967.0     16.9      0.0          x_start_infos_after_gnn = torch.cat(x_start_infos_after_gnn)
+   588      2186      21572.9      9.9      0.0          x_dest_infos_after_gnn = torch.cat(x_dest_infos_after_gnn)
+   589                                                   #print(f"after load{x_start_infos_after_gnn.shape}")
+   590      2186      29019.5     13.3      0.0          x_start_infos_after_gnn = x_start_infos_after_gnn.reshape((batch_num, KNN_AGENTS, self.fromnodes, -1))
+   591      2186      10470.0      4.8      0.0          x_dest_infos_after_gnn = x_dest_infos_after_gnn.reshape((batch_num, KNN_AGENTS, self.tonodes, -1))
+   592                                           
+   593     67162      23166.8      0.3      0.0          for batch in range(batch_num):
+   594     64976     215784.6      3.3      0.1              x_start_info = x_start_infos_after_gnn[batch]
+   595     64976     158541.0      2.4      0.1              x_dest_info = x_dest_infos_after_gnn[batch]
+   596     64976     137752.3      2.1      0.0              x_start_graph = x_start_graphs[batch]
+   597     64976     118636.9      1.8      0.0              x_else = x_elses[batch]
+   598     64976      15129.0      0.2      0.0              x_tmp_feat = []
+   599    324880     171510.8      0.5      0.1              for robot in range(KNN_AGENTS):
+   600    259904     758792.0      2.9      0.2                  x_start_info_robot = x_start_info[robot]
+   601    259904     640530.4      2.5      0.2                  x_dest_info_robot = x_dest_info[robot]
+   602    259904     459426.8      1.8      0.1                  x_start_graph_robot = x_start_graph[robot]
+   603    259904     436969.6      1.7      0.1                  x_dest_graph_robot = x_dest_graph[robot]
+   604    259904     431714.2      1.7      0.1                  x_else_robot = x_else[robot]
+   605    259904   14145801.2     54.4      4.5                  rows = self.find_indices(ACTION_LIST, x_start_graph_robot)
+   606    259904   11148959.2     42.9      3.6                  x_tmp_feat.append(torch.cat([torch.flatten(x_start_info_robot[rows]), x_dest_info_robot[0], x_else_robot]))
+   607     64976     363659.1      5.6      0.1              x_tmp_feat = torch.cat(x_tmp_feat)
+   608     64976      36740.5      0.6      0.0              x_feat.append(x_tmp_feat)
+   609                                           
+   610                                                   #print(f"after load{x_start_infos_after_gnn.shape}")
+   611                                                   #x_feat = torch.cat([x_start_infos_after_gnn, x_dest_infos_after_gnn, x_elses], dim=2)
+   612                                                   #print(f"{x_feat.shape}")
+   613      2186      83995.1     38.4      0.0          x = torch.cat(x_feat)
+   614      2186      18953.0      8.7      0.0          x = torch.reshape(x, (batch_num, -1))
+   615      2186        564.7      0.3      0.0          """
+   616                                                   for batch in range(batch_num):
+   617                                                       x_start_info = x_start_infos[batch]
+   618                                                       x_dest_info = x_dest_infos[batch]
+   619                                                       x_start_graph = x_start_graphs[batch]
+   620                                                       x_dest_graph = x_dest_graphs[batch]
+   621                                                       x_else = x_elses[batch]
+   622                                                       x_tmp_feat = []
+   623                                           
+   624                                                       for robot in range(KNN_AGENTS):
+   625                                                           x_start_info_robot = x_start_info[robot]
+   626                                                           x_dest_info_robot = x_dest_info[robot]
+   627                                                           x_start_graph_robot = x_start_graph[robot]
+   628                                                           x_dest_graph_robot = x_dest_graph[robot]
+   629                                                           x_else_robot = x_else[robot]
+   630                                                           
+   631                                                           if SAME_GNN_MODEL:
+   632                                                               x_start_info_robot = self.state_graph_l1(x_start_info_robot, x_start_graph_robot, CONNECTDICT)
+   633                                                               x_dest_info_robot = self.dest_graph_l1(x_dest_info_robot, x_dest_graph_robot, CONNECTDICT)
+   634                                                           else:
+   635                                                               x_start_info_robot = self.state_graph_l1[robot](x_start_info_robot, x_start_graph_robot, CONNECTDICT)
+   636                                                               x_dest_info_robot = self.dest_graph_l1[robot](x_dest_info_robot, x_dest_graph_robot, CONNECTDICT)
+   637                                                           
+   638                                                           rows = self.find_indices(ACTION_LIST, x_start_graph_robot)
+   639                                                           x_tmp_feat.append(torch.cat([torch.flatten(x_start_info_robot[rows]), x_dest_info_robot[0], x_else_robot]))
+   640                                                       x_tmp_feat = torch.cat(x_tmp_feat)
+   641                                                       x_feat.append(x_tmp_feat)
+   642                                                       
+   643                                                   x = torch.cat(x_feat)
+   644                                                   x = torch.reshape(x, (batch_num, -1))
+   645                                                   """
+   646                                                   #### Graph End #####
+   647                                           
+   648      2186    3939388.0   1802.1      1.3          x = F.relu(self.l1(x))
+   649      2186       1062.6      0.5      0.0          if DIM2:
+   650                                                       x = F.relu(self.l2(x))
+   651                                           
+   652      2186        691.0      0.3      0.0          if DUELINGMODE:
+   653      2186    5167756.0   2364.0      1.7              adv = self.ladv_last(x)
+   654      2186     275205.8    125.9      0.1              v = self.lv_last(x)
+   655      2186      55552.1     25.4      0.0              averagea = adv.mean(1, keepdim=True)
+   656      2186      50943.7     23.3      0.0              return v.expand(-1, self.action_dims) + (adv - averagea.expand(-1, self.action_dims))
+   657                                                   else:
+   658                                                       x = self.l_last(x)
+   659                                                       return x
+

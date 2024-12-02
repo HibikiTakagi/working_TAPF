@@ -1,0 +1,37 @@
+Timer unit: 1e-06 s
+
+Total time: 211.957 s
+File: /working/AGV_20240115/simulation/QNet.py
+Function: forward at line 238
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   238                                               @profile
+   239                                               def forward(self, x_local_graphinfo, x_local_node_id):
+   240    465173   61382453.5    132.0     29.0          x_local_edge = self.make_localedge(x_local_node_id)
+   241    465173  146698950.2    315.4     69.2          x = self.conv1(x_local_graphinfo, x_local_edge)
+   242    465172    3787354.8      8.1      1.8          x = F.relu(x)
+   243    465172      87943.4      0.2      0.0          return x
+
+Total time: 53.2292 s
+File: /working/AGV_20240115/simulation/QNet.py
+Function: make_localedge at line 246
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   246                                               @profile
+   247                                               def make_localedge(self, nodes_float):
+   248                                                   #nodes = torch.tensor(nodes_float, dtype=torch.int32).to('cpu').numpy()
+   249    465173    8624832.0     18.5     16.2          nodes = nodes_float.clone().detach().to(torch.int32).to('cpu').numpy()
+   250    465173     136672.3      0.3      0.3          edges_from = []
+   251    465173      83212.5      0.2      0.2          edges_to = []
+   252   2791038    2114849.1      0.8      4.0          for start_node in nodes:
+   253   5603630    7864473.6      1.4     14.8              for dest_node in self.graph_connect[start_node]:
+   254   3277765   13142889.3      4.0     24.7                  if dest_node in nodes:
+   255   2009047    7427896.8      3.7     14.0                      start_idx = np.where(nodes==start_node)[0][0]
+   256   2009047    6397576.8      3.2     12.0                      dest_idx = np.where(nodes==dest_node)[0][0]
+   257   2009047     811092.4      0.4      1.5                      edges_from.append(start_idx)
+   258   2009047     629365.0      0.3      1.2                      edges_to.append(dest_idx)
+   259    465173    5900115.6     12.7     11.1          edges = torch.tensor([edges_from, edges_to], dtype=torch.int32).to(DEVICE)
+   260    465173      96197.9      0.2      0.2          return edges
+

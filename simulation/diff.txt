@@ -1,0 +1,634 @@
+105,106c105
+<     def abst_greedy(self, network, state, info):
+<         local_edge, rows_common, rows_local, each_info = info
+---
+>     def abst_greedy(self, network, state, local_edge, rows_common, rows_local, nodes_info_for_gnn):
+121c120
+<             outputs_ = network(inputs, local_edge, rows_common, rows_local, each_info) # GNN 98.2% 
+---
+>             outputs_ = network(inputs, local_edge, rows_common, rows_local) # GNN 98.2% 
+141,142c140,141
+<     def target_greedy(self, state, info):
+<         return self.abst_greedy(self._target_network, state, info)
+---
+>     def target_greedy(self, state, local_edge, rows_common, rows_local, nodes_info_for_gnn):
+>         return self.abst_greedy(self._target_network, state, local_edge, rows_common, rows_local, nodes_info_for_gnn)
+144,145c143,144
+<     def greedy(self, state, info):
+<         return self.abst_greedy(self._q_network, state, info)
+---
+>     def greedy(self, state, local_edge, rows_common, rows_local, nodes_info_for_gnn):
+>         return self.abst_greedy(self._q_network, state, local_edge, rows_common, rows_local, nodes_info_for_gnn)
+147c146
+<     def epsilon_greedy(self, state, info):
+---
+>     def epsilon_greedy(self, state, local_edge, rows_common, rows_local, nodes_info_for_gnn):
+152c151
+<             return self.greedy(state, info)
+---
+>             return self.greedy(state, local_edge, rows_common, rows_local, nodes_info_for_gnn)
+169c168
+<         encoded_s, action, reward, encoded_new_s, done, local_edge , rows_common, rows_local, each_info,local_edge_next , rows_common_next, rows_local_next, each_info_next= batch
+---
+>         encoded_s, action, reward, encoded_new_s, done, local_edge , rows_common, rows_local, nodes_info_for_gnn, local_edge_next , rows_common_next, rows_local_next, nodes_info_for_gnn_next= batch
+173,174c172,173
+<         td_target = self._q_network(encoded_s, local_edge, rows_common, rows_local, each_info)
+<         q = self._q_network(encoded_s, local_edge, rows_common, rows_local, each_info)
+---
+>         td_target = self._q_network(encoded_s, local_edge, rows_common, rows_local)
+>         q = self._q_network(encoded_s, local_edge, rows_common, rows_local)
+176,177c175,176
+<         td_target_new = self._q_network(encoded_new_s, local_edge_next, rows_common_next, rows_local_next, each_info_next).detach().cpu().numpy()
+<         max_estimated_target = self._target_network(encoded_new_s, local_edge_next, rows_common_next, rows_local_next, each_info_next).detach()
+---
+>         td_target_new = self._q_network(encoded_new_s, local_edge_next, rows_common_next, rows_local_next).detach().cpu().numpy()
+>         max_estimated_target = self._target_network(encoded_new_s, local_edge_next, rows_common_next, rows_local_next).detach()
+171,175c171,175
+<             #node_data_info[NODE_INFO_COMMON_ROUTE] = np.sum(self.nodes_route_an_agent.T[node_id][robots]) / KNN_AGENTS
+<             for i in range(KNN_AGENTS):
+<                 if self.knn_agents_distanse[robot_id][i] != 0:
+<                     node_data_info[NODE_INFO_COMMON_ROUTE] = self.nodes_route_an_agent.T[node_id][robots[i]]
+<             node_data_info[NODE_INFO_COMMON_ROUTE] = node_data_info[NODE_INFO_COMMON_ROUTE] / KNN_AGENTS
+---
+>             node_data_info[NODE_INFO_COMMON_ROUTE] = np.sum(self.nodes_route_an_agent.T[node_id][robots]) / KNN_AGENTS
+>             #for i in range(KNN_AGENTS):
+>             #    if self.knn_agents_distanse[robot_id][i] != 0:
+>             #        node_data_info[NODE_INFO_COMMON_ROUTE] = self.nodes_route_an_agent.T[node_id][robots[i]]
+>             #node_data_info[NODE_INFO_COMMON_ROUTE] = node_data_info[NODE_INFO_COMMON_ROUTE] / KNN_AGENTS
+178,182c178,182
+<             #node_data_info[NODE_INFO_COMMON_NUMROBOT] = np.sum(self.nodes_bool_route_an_agent.T[node_id][robots]) / KNN_AGENTS
+<             for i in range(KNN_AGENTS):
+<                 if self.knn_agents_distanse[robot_id][i] != 0:
+<                     node_data_info[NODE_INFO_COMMON_NUMROBOT] = self.nodes_bool_route_an_agent.T[node_id][robots[i]]
+<             node_data_info[NODE_INFO_COMMON_NUMROBOT] = node_data_info[NODE_INFO_COMMON_NUMROBOT] / KNN_AGENTS
+---
+>             node_data_info[NODE_INFO_COMMON_NUMROBOT] = np.sum(self.nodes_bool_route_an_agent.T[node_id][robots]) / KNN_AGENTS
+>             #for i in range(KNN_AGENTS):
+>             #    if self.knn_agents_distanse[robot_id][i] != 0:
+>             #        node_data_info[NODE_INFO_COMMON_NUMROBOT] = self.nodes_bool_route_an_agent.T[node_id][robots[i]]
+>             #node_data_info[NODE_INFO_COMMON_NUMROBOT] = node_data_info[NODE_INFO_COMMON_NUMROBOT] / KNN_AGENTS
+76c76
+<     def forward(self, x, local_edge, rows_common, rows_local):
+---
+>     def forward(self, x, connectdict):
+167a168,215
+> """
+> class QNet(nn.Module):
+>     def __init__(self, state_dim:int ,action_dims:int) -> None:
+>         super().__init__()
+>         self.state_dims = state_dim
+>         self.action_dims = action_dims
+>         
+>         self.dims_l1 = 512
+>         self.dims_before_last = self.dims_l1
+>         self.l1 = nn.Linear(self.state_dims, self.dims_l1)
+>         if DIM2:
+>             self.dims_l2 = 512
+>             self.l2 = nn.Linear(self.dims_l1, self.dims_l2)
+>             self.dims_before_last = self.dims_l2
+>             nn.init.kaiming_uniform_(self.l2.weight, mode="fan_in", nonlinearity="relu")
+>         #'''
+>         if NOISYMODE:
+>             self.l_last = FactorizedNoisy(self.dims_before_last, action_dims)
+>             self.ladv_last = FactorizedNoisy(self.dims_before_last, action_dims)
+>             self.lv_last = FactorizedNoisy(self.dims_before_last, 1)
+>         else:
+>             self.l_last = nn.Linear(self.dims_before_last, action_dims)
+>             self.ladv_last = nn.Linear(self.dims_before_last, action_dims)
+>             self.lv_last = nn.Linear(self.dims_before_last, 1)
+>         #'''
+>         nn.init.kaiming_uniform_(self.l1.weight, mode="fan_in", nonlinearity="relu")
+>         
+>         if NOISYMODE:
+>             pass
+>         else:
+>             nn.init.kaiming_uniform_(self.l_last.weight, mode="fan_in", nonlinearity="relu")
+>             nn.init.kaiming_uniform_(self.ladv_last.weight, mode="fan_in", nonlinearity="relu")
+>             nn.init.kaiming_uniform_(self.lv_last.weight, mode="fan_in", nonlinearity="relu")
+>     
+>     def forward(self, x):
+>         x = F.relu(self.l1(x))
+>         if DIM2:
+>             x = F.relu(self.l2(x))
+> 
+>         if DUELINGMODE:
+>             adv = self.ladv_last(x)
+>             v = self.lv_last(x)
+>             averagea = adv.mean(1, keepdim=True)
+>             return v.expand(-1, self.action_dims) + (adv - averagea.expand(-1, self.action_dims))
+>         else:
+>             x = self.l_last(x)
+>             return x
+> #"""
+205a254,386
+> """
+> class LocalGraphEmbedding(nn.Module):
+>     def __init__(self, input_dim:int ,output_dim:int) -> None:
+>         super().__init__()
+>         self.graph_connect = CONNECTDICT
+>         self.conv1 = GCNConv(input_dim, output_dim)
+>     
+>     def forward(self, x_local_graphinfo, x_local_node_id):
+>         batch_num = x_local_graphinfo.shape[0]
+>         x_local_edge = self.make_localedge(x_local_node_id, batch_num)
+>         x_local_graphinfo = x_local_graphinfo.reshape((batch_num, len(x_local_node_id[0]), NODE_DATA_DIM))
+>         print(f"x_local_graphinfo.shape{x_local_graphinfo.shape}")
+>         print(f"edge{x_local_edge.shape}")
+>         x = self.conv1(x_local_graphinfo, x_local_edge)
+>         x = F.relu(x)
+>         return x
+>     
+>     def make_localedge(self, nodes_float, batch_num):
+>         #multi_edges = []
+>         nodes = torch.tensor(nodes_float, dtype=torch.int32).numpy()
+>         print(nodes)
+>         
+>         multi_adjacencymatrix = []
+>         for i in range(batch_num):
+>             #edges_from = []
+>             #edges_to = []
+>             adjacencymatrix = np.zeros((len(nodes[i]), len(nodes[i])), dtype=int)
+>             for start_node in nodes[i]:
+>                 for dest_node in self.graph_connect[start_node]:
+>                     if dest_node in nodes[i]:
+>                         start_idx = np.where(nodes[i]==start_node)[0][0]
+>                         dest_idx = np.where(nodes[i]==dest_node)[0][0]
+>                         #edges_from.append(np.where(nodes[i]==start_node)[0][0])
+>                         #edges_to.append(np.where(nodes[i]==dest_node)[0][0])
+>                         adjacencymatrix[start_idx][dest_idx] += 1
+>             multi_adjacencymatrix.append(torch.tensor(adjacencymatrix,dtype=torch.int32))
+> 
+>             #edges = torch.tensor([edges_from, edges_to], dtype=torch.int32)
+>             #multi_edges.append(edges)
+>         #multi_edges = torch.tensor(multi_edges)
+>         #print(multi_edges)
+>         multi_adjacencymatrix = torch.cat(multi_adjacencymatrix, dim=1)
+>         multi_adjacencymatrix = multi_adjacencymatrix.reshape((batch_num,len(nodes[i]), len(nodes[i])))
+>         print(f"mat{multi_adjacencymatrix.shape}")
+>         return multi_adjacencymatrix
+> 
+> class ReverseLocalGraphEmbedding(nn.Module):
+>     def __init__(self, input_dim:int ,output_dim:int) -> None:
+>         super().__init__()
+>         self.graph_connect = CONNECT_TO_DICT
+>         self.conv1 = GCNConv(input_dim, output_dim)
+>     
+>     def forward(self, x_local_graphinfo, x_local_node_id):
+>         batch_num = x_local_graphinfo.shape[0]
+> 
+>         x_local_edge = self.make_localedge(x_local_node_id, batch_num)
+>         x = self.conv1(x_local_graphinfo, x_local_edge)
+>         x = F.relu(x)
+>         return x
+>     
+>     def make_localedge(self, nodes, batch_num):
+>         multi_edges = []
+>         print(nodes)
+>         multi_adjacencymatrix = []
+>         for i in range(batch_num):
+>             #edges_from = []
+>             #edges_to = []
+>             adjacencymatrix = np.zeros((len(nodes[i]), len(nodes[i])), dtype=int)
+>             for start_node in nodes[i]:
+>                 for dest_node in self.graph_connect[start_node]:
+>                     if dest_node in nodes[i]:
+>                         #edges_from.append(np.where(nodes[i]==start_node)[0][0])
+>                         #edges_to.append(np.where(nodes[i]==dest_node)[0][0])
+>                         adjacencymatrix[start_node][dest_node] += 1
+>             multi_adjacencymatrix.append(torch.tensor(adjacencymatrix,dtype=torch.int32))
+> 
+>             #edges = torch.tensor([edges_from, edges_to], dtype=torch.int32)
+>             #multi_edges.append(edges)
+>         #multi_edges = torch.tensor(multi_edges)
+>         #print(multi_edges)
+>         multi_adjacencymatrix = torch.cat(multi_adjacencymatrix)
+>         print(f"mat{multi_adjacencymatrix.shape}")
+>         return multi_adjacencymatrix
+> """
+> 
+> class OLD_LocalGraphEmbedding(nn.Module):
+>     def __init__(self, input_dim:int ,output_dim:int, connect:dict) -> None:
+>         super().__init__()
+>         self.graph_connect = connect
+>         #self.conv1 = GCNConv(input_dim, output_dim)
+>         self.conv1 = SAGEConv(input_dim, output_dim)
+>     
+>     #@profile
+>     def forward(self, x_local_graphinfo, x_local_node_id, connect):
+>         x_local_edge = self.make_localedge(x_local_node_id, connect)
+>         x = self.conv1(x_local_graphinfo, x_local_edge)
+>         x = F.relu(x)
+>         return x
+>     
+>     #"""
+>     #@profile
+>     def make_localedge(self, nodes_float, connect):
+>         nodes = nodes_float.clone().detach().to(torch.int32).to('cpu').numpy()
+>         edges_from = []
+>         edges_to = []
+>         #print(f"model:{len(self.graph_connect)}")
+>         for start_node in nodes:
+>             for dest_node in connect[start_node]:
+>                 if dest_node in nodes:
+>                     start_idx = np.where(nodes==start_node)[0][0]
+>                     dest_idx = np.where(nodes==dest_node)[0][0]
+>                     edges_from.append(start_idx)
+>                     edges_to.append(dest_idx)
+>         edges = torch.tensor([edges_from, edges_to], dtype=torch.int64).to(DEVICE) # for Graph SAGE int64 (not int32)
+>         return edges
+>     #"""
+>     
+>     """
+>     #@profile
+>     def make_localedge(self, nodes_float):
+>         nodes = nodes_float.clone().detach().to(torch.int32)
+>         edges_from = []
+>         edges_to = []
+>         for start_node in nodes:
+>             for dest_node in self.graph_connect[start_node.item()]:
+>                 if dest_node in nodes:
+>                     start_idx = torch.where(nodes==start_node)[0][0].item()
+>                     dest_idx = torch.where(nodes==dest_node)[0][0].item()
+>                     edges_from.append(start_idx)
+>                     edges_to.append(dest_idx)
+>         edges = torch.tensor([edges_from, edges_to], dtype=torch.int32).to(DEVICE)
+>         return edges
+>     """
+206a388,522
+> """
+> class QNet(nn.Module):
+>     def __init__(self, state_dim:int ,action_dims:int) -> None:
+>         super().__init__()
+>         self.state_dims = state_dim
+>         self.action_dims = action_dims
+> 
+>         self.node_data_dim = NODE_DATA_DIM
+>         self.startnode_dims = NODE_DATA_DIM * NUM_NODES_OF_LOCAL_GRAPH_START
+>         self.destnode_dims = NODE_DATA_DIM * NUM_NODES_OF_LOCAL_GRAPH_DEST
+>         self.fromnodes = NUM_NODES_OF_LOCAL_GRAPH_START
+>         self.tonodes = NUM_NODES_OF_LOCAL_GRAPH_DEST
+>         self.elsedim = 2
+> 
+>         self.singledims = self.elsedim + self.node_data_dim * (self.action_dims + 1)
+>         self.connect_dims = self.singledims * KNN_AGENTS
+>         #print(len(CONNECTDICT))
+>         #if SAME_GNN_MODEL:
+>         #    self.state_graph_l1 = LocalGraphEmbedding(input_dim=self.node_data_dim, output_dim=self.node_data_dim, connect=CONNECTDICT) 
+>             #self.dest_graph_l1 = LocalGraphEmbedding(input_dim=self.node_data_dim, output_dim=self.node_data_dim, connect=CONNECT_TO_DICT)
+>             #self.dest_graph_l1 = LocalGraphEmbedding(input_dim=self.node_data_dim, output_dim=self.node_data_dim, connect=CONNECTDICT)
+>         #    self.dest_graph_l1 = self.state_graph_l1
+>         #else:
+>         #    self.state_graph_l1 = [LocalGraphEmbedding(input_dim=self.node_data_dim, output_dim=self.node_data_dim, connect=CONNECTDICT) for _ in range(KNN_AGENTS)]
+>         #    self.dest_graph_l1 = [LocalGraphEmbedding(input_dim=self.node_data_dim, output_dim=self.node_data_dim, connect=CONNECT_TO_DICT) for _ in range(KNN_AGENTS)]
+>             #self.dest_graph_l1 = [LocalGraphEmbedding(input_dim=self.node_data_dim, output_dim=self.node_data_dim, connect=CONNECTDICT) for _ in range(KNN_AGENTS)]
+> 
+>         if SAME_GNN_MODEL:
+>             self.state_graph_l1 = LocalGraphEmbedding(input_dim=self.node_data_dim, output_dim=self.node_data_dim, connect=CONNECTDICT) 
+>             self.dest_graph_l1 = self.state_graph_l1
+>         else:
+>             self.state_graph_l1 = [LocalGraphEmbedding(input_dim=self.node_data_dim, output_dim=self.node_data_dim) for _ in range(KNN_AGENTS)]
+>             self.dest_graph_l1 = [LocalGraphEmbedding(input_dim=self.node_data_dim, output_dim=self.node_data_dim) for _ in range(KNN_AGENTS)]
+> 
+>         
+>         self.dims_l1 = 512
+>         self.dims_before_last = self.dims_l1
+>         self.l1 = nn.Linear(self.connect_dims, self.dims_l1)
+>         nn.init.kaiming_uniform_(self.l1.weight, mode="fan_in", nonlinearity="relu")
+>         
+>         self.l_last = FactorizedNoisy(self.dims_before_last, action_dims)
+>         self.ladv_last = FactorizedNoisy(self.dims_before_last, action_dims)
+>         self.lv_last = FactorizedNoisy(self.dims_before_last, 1)
+>         
+>         self.flatten = nn.Flatten()
+>     
+>     def find_indices(self, actionlist, nodes_float):
+>         indices = []
+>         
+>         nodes = nodes_float.clone().detach().to(torch.int32).to('cpu').numpy()
+>         for item in actionlist[nodes[0]]:
+>             if item in nodes:
+>                 indices.append(np.where(nodes==item)[0][0])
+>         return indices
+> 
+>     #@profile
+>     def forward(self, x):
+>         #### Graph #####
+>         #print(x.shape)
+>         batch_num = x.shape[0]
+>         x_reshape = torch.reshape(x, (batch_num, KNN_AGENTS, -1))
+>         #print(x_reshape.shape)
+>         x_split = torch.split(x_reshape, (self.startnode_dims,self.destnode_dims,self.fromnodes,self.tonodes, self.elsedim), dim=2)
+>         x_start_infos = torch.reshape(x_split[0], (batch_num, KNN_AGENTS, self.fromnodes, -1))
+>         x_dest_infos = torch.reshape(x_split[1], (batch_num, KNN_AGENTS, self.tonodes, -1))
+>         x_start_graphs = x_split[2]
+>         x_dest_graphs = x_split[3]
+>         x_elses = x_split[4]
+> 
+>         #print(x_start_infos.shape)
+>         #print(x_dest_infos.shape)
+>         #print(x_start_graphs.shape)
+>         #print(x_dest_graphs.shape)
+>         #print(x_elses.shape)
+> 
+>         x_feat = []
+>         for batch in range(batch_num):
+>             x_start_info = x_start_infos[batch]
+>             x_dest_info = x_dest_infos[batch]
+>             x_start_graph = x_start_graphs[batch]
+>             x_dest_graph = x_dest_graphs[batch]
+>             x_else = x_elses[batch]
+>             x_tmp_feat = []
+> 
+>             #print(x_start_info.shape)
+>             #print(x_dest_info.shape)
+>             #print(x_start_graph.shape)
+>             #print(x_dest_graph.shape)
+>             for robot in range(KNN_AGENTS):
+>                 x_start_info_robot = x_start_info[robot]
+>                 x_dest_info_robot = x_dest_info[robot]
+>                 x_start_graph_robot = x_start_graph[robot]
+>                 x_dest_graph_robot = x_dest_graph[robot]
+>                 x_else_robot = x_else[robot]
+>                 
+>                 #if robot == 0:
+>                 #    print(f"qnet_start{x_start_info_robot}")
+>                 #    print(f"qnet_dest{x_dest_info_robot}")
+>                 #    print(f"qnet_start_g{x_start_graph_robot}")
+>                 #    print(f"qnet_dest_g{x_dest_graph_robot}")
+> 
+>                 #if SAME_GNN_MODEL:
+>                 #    x_start_info_robot = self.state_graph_l1(x_start_info_robot, x_start_graph_robot)
+>                 #    x_dest_info_robot = self.dest_graph_l1(x_dest_info_robot, x_dest_graph_robot)
+>                 #else:
+>                 #    x_start_info_robot = self.state_graph_l1[robot](x_start_info_robot, x_start_graph_robot)
+>                 #    x_dest_info_robot = self.dest_graph_l1[robot](x_dest_info_robot, x_dest_graph_robot)
+>                 
+>                 if SAME_GNN_MODEL:
+>                     x_start_info_robot = self.state_graph_l1(x_start_info_robot, x_start_graph_robot, CONNECTDICT)
+>                     x_dest_info_robot = self.dest_graph_l1(x_dest_info_robot, x_dest_graph_robot, CONNECTDICT)
+>                 else:
+>                     x_start_info_robot = self.state_graph_l1[robot](x_start_info_robot, x_start_graph_robot, CONNECTDICT)
+>                     x_dest_info_robot = self.dest_graph_l1[robot](x_dest_info_robot, x_dest_graph_robot, CONNECTDICT)
+>                 
+>                 rows = self.find_indices(ACTION_LIST, x_start_graph_robot)
+>                 #print(torch.flatten(x_start_info_robot[rows]).shape)
+>                 #print(x_dest_info_robot[0].shape)
+>                 #print(x_else_robot.shape)
+>                 x_tmp_feat.append(torch.cat([torch.flatten(x_start_info_robot[rows]), x_dest_info_robot[0], x_else_robot]))
+>             x_tmp_feat = torch.cat(x_tmp_feat)
+>             #print(x_tmp_feat.shape)
+>             x_feat.append(x_tmp_feat)
+>             
+>             #print("end")
+>         #print("for clear")
+>         x = torch.cat(x_feat)
+>         x = torch.reshape(x, (batch_num, -1))
+>         #print(x.shape)
+> 
+>         #### Graph End #####
+> 
+>         x = F.relu(self.l1(x))
+>         if DIM2:
+>             x = F.relu(self.l2(x))
+207a524,532
+>         if DUELINGMODE:
+>             adv = self.ladv_last(x)
+>             v = self.lv_last(x)
+>             averagea = adv.mean(1, keepdim=True)
+>             return v.expand(-1, self.action_dims) + (adv - averagea.expand(-1, self.action_dims))
+>         else:
+>             x = self.l_last(x)
+>             return x
+> #"""
+249,250c574
+<         
+<         
+---
+>             
+259,260c583,584
+<         self.gat_conv = GATConv(self.gcn_node_data_before_dim, self.gcn_node_data_after_dim)
+<         self.gat_conv2 = GATConv(self.gcn_node_data_after_dim, self.gcn_node_data_after_dim)
+---
+>         self.gatconv = GATConv(self.gcn_node_data_before_dim, self.gcn_node_data_after_dim)
+>         self.gatconv2 = GATConv(self.gcn_node_data_after_dim, self.gcn_node_data_after_dim)
+278c602
+< 
+---
+>         
+281d604
+<         #self.gat = GATConv(self.gcn_node_data_before_dim, self.gcn_node_data_after_dim)
+317c640
+<     def forward(self, x, local_edge, rows_common, rows_local, each_info):
+---
+>     def forward(self, x, local_edge, rows_common, rows_local):
+330,331c653,654
+<         #x_each_start_infos = x_start_infos[:,:,:,0:NODE_DATA_EACH_DIM]
+<         #x_each_dest_infos = x_dest_infos[:,:,:,0:NODE_DATA_EACH_DIM]
+---
+>         x_each_start_infos = x_start_infos[:,:,:,0:NODE_DATA_EACH_DIM]
+>         x_each_dest_infos = x_dest_infos[:,:,:,0:NODE_DATA_EACH_DIM]
+349c672
+<         #x_each_infos = torch.cat([x_each_start_infos, x_each_dest_infos], dim=2)  # [KNN_AGENTS, M] where M is the combined size
+---
+>         x_each_infos = torch.cat([x_each_start_infos, x_each_dest_infos], dim=2)  # [KNN_AGENTS, M] where M is the combined size
+351d673
+<         x_infos = []
+353c675
+<         datasets = [self.make_gnn_dataset(x_infos_batch[b], local_edge[b]) for b in range(batch_num)]
+---
+>         datasets = [self.make_gnn_dataset(x_infos_batch[b], local_edge[b]) for b in range(batch_num)] # 3.5%
+355a678
+>         x_infos = []
+357c680
+<         for data in dataset_loader: # GNN処理 # GNN 8.5%
+---
+>         for data in dataset_loader: # GNN処理 # GNN 8.5% #41.1%
+365c688
+<             x_data = self.gcn_conv(x_data, data.edge_index)
+---
+>             x_data = self.gcn_conv(x_data, data.edge_index) # 35.4%
+367c690
+<             #x_data = self.gat_conv(x_data, data.edge_index)
+---
+>             #x_data = self.gatconv(x_data, data.edge_index)
+369c692
+<             x_data = self.ln_gcn(x_data)
+---
+>             x_data = self.ln_gcn(x_data) # 6.0% 
+371,377c694,696
+< 
+<             #x_data = self.edge_conv(x_data, data.edge_index)
+<             x_data = self.gcn_conv2(x_data, data.edge_index)
+<             #x_data = self.sage_conv(x_data, data.edge_index)
+<             #x_data = self.gat(x_data, data.edge_index)
+<             #x_data = self.edge_conv(x_data)
+<             x_data = self.ln_gcn2(x_data)
+---
+>             
+>             x_data = self.gcn_conv2(x_data, data.edge_index) # 35.4%
+>             x_data = self.ln_gcn2(x_data) # 6.0% 
+379a699
+>             
+385,387d704
+<         
+< 
+<         #"""
+402,420c719,726
+<         #""" # もし node数が3-1から変更されるならこちらを使用する必要がある。そうでなくともこちらを使わないといけないっぽい。
+<         #x_each_info_flats = torch.flatten(
+<         #    torch.stack(
+<         #        [
+<         #            torch.stack(
+<         #                [
+<         #                    x_each_infos[batch][robot][rows_local[batch][robot]] for robot in range(KNN_AGENTS)
+<         #                ]
+<         #        )
+<         #        for batch in range(batch_num)]
+<         #    ), start_dim=2
+<         #)
+<         x_each_info_flats = torch.tensor(np.concatenate(each_info).reshape(batch_num, KNN_AGENTS, -1)).to(DEVICE)
+<         #print(each_info_maker_flats==x_each_info_flats)
+< 
+<         #print(f"x_e_info{x_each_infos.shape}")
+<         #print(f"rows_{rows_local.shape}")
+<         #"""
+<         #x_each_info_flats = torch.flatten(x_each_infos, start_dim=2)
+---
+>         
+>         x_each_info_flats = torch.flatten(
+>             torch.stack(
+>                 [torch.stack( # 9.6%
+>                     [x_each_infos[batch][robot][rows_local[batch][robot]] for robot in range(KNN_AGENTS)]
+>                 )for batch in range(batch_num)]
+>             ), start_dim=2
+>         )
+57,58c57
+<         #state, action, reward, next_state, done, local_edge, rows_common, rows_local, nodes_info_for_gnn, each_info,local_edge_next, rows_common_next, rows_local_next, nodes_info_for_gnn_next, each_info_next = transition
+<         state, action, reward, next_state, done, local_edge, rows_common, rows_local, each_info,local_edge_next, rows_common_next, rows_local_next, each_info_next = transition
+---
+>         state, action, reward, next_state, done, local_edge, rows_common, rows_local, nodes_info_for_gnn,local_edge_next, rows_common_next, rows_local_next, nodes_info_for_gnn_next = transition
+79,81c78
+<             #self._nodes_info_for_gnn_dict_buffer = [copy.deepcopy(nodes_info_for_gnn)]
+<             self._each_info_dict_buffer = [copy.deepcopy(each_info)]
+<             
+---
+>             self._nodes_info_for_gnn_dict_buffer = [copy.deepcopy(nodes_info_for_gnn)]
+85,86c82
+<             #self._nodes_info_for_gnn_next_dict_buffer = [copy.deepcopy(nodes_info_for_gnn_next)]
+<             self._each_info_next_dict_buffer = [copy.deepcopy(each_info_next)]
+---
+>             self._nodes_info_for_gnn_next_dict_buffer = [copy.deepcopy(nodes_info_for_gnn_next)]
+93,95c89
+<             #self._nodes_info_for_gnn_dict_buffer[self._next_idx] = copy.deepcopy(nodes_info_for_gnn)
+<             self._each_info_dict_buffer[self._next_idx] = copy.deepcopy(each_info)
+< 
+---
+>             self._nodes_info_for_gnn_dict_buffer[self._next_idx] = copy.deepcopy(nodes_info_for_gnn)
+99,100c93
+<             #self._nodes_info_for_gnn_next_dict_buffer[self._next_idx] = copy.deepcopy(nodes_info_for_gnn_next)
+<             self._each_info_next_dict_buffer[self._next_idx] = copy.deepcopy(each_info_next)
+---
+>             self._nodes_info_for_gnn_next_dict_buffer[self._next_idx] = copy.deepcopy(nodes_info_for_gnn_next)
+106,108c99
+<             #self._nodes_info_for_gnn_dict_buffer.append(copy.deepcopy(nodes_info_for_gnn))
+<             self._each_info_dict_buffer.append(copy.deepcopy(each_info))
+< 
+---
+>             self._nodes_info_for_gnn_dict_buffer.append(copy.deepcopy(nodes_info_for_gnn))
+112,113c103
+<             #self._nodes_info_for_gnn_next_dict_buffer.append(copy.deepcopy(nodes_info_for_gnn_next))
+<             self._each_info_next_dict_buffer.append(copy.deepcopy(each_info_next))
+---
+>             self._nodes_info_for_gnn_next_dict_buffer.append(copy.deepcopy(nodes_info_for_gnn_next))
+137,138c127
+<         #nodes_info_for_gnn = [self._nodes_info_for_gnn_dict_buffer[ind] for ind in indexes]
+<         each_info = [self._each_info_dict_buffer[ind] for ind in indexes]
+---
+>         nodes_info_for_gnn = [self._nodes_info_for_gnn_dict_buffer[ind] for ind in indexes]
+143,144c132
+<         #nodes_info_for_gnn_next = [self._nodes_info_for_gnn_next_dict_buffer[ind] for ind in indexes]
+<         each_info_next = [self._each_info_next_dict_buffer[ind] for ind in indexes]
+---
+>         nodes_info_for_gnn_next = [self._nodes_info_for_gnn_next_dict_buffer[ind] for ind in indexes]
+146,147c134
+<         #return [states, actions, rewards, next_states, done, local_edge, rows_common, rows_local, nodes_info_for_gnn, each_info,local_edge_next, rows_common_next, rows_local_next, nodes_info_for_gnn_next, each_info_next]
+<         return [states, actions, rewards, next_states, done, local_edge, rows_common, rows_local, each_info,local_edge_next, rows_common_next, rows_local_next, each_info_next]
+---
+>         return [states, actions, rewards, next_states, done, local_edge, rows_common, rows_local, nodes_info_for_gnn,local_edge_next, rows_common_next, rows_local_next, nodes_info_for_gnn_next]
+102,103d101
+< 
+<         #print(f"state{state_reshape.shape}")
+107d104
+<         
+115,126c112,118
+<         x_start_infos = np.reshape(start_info, (self.env.num_agents, KNN_AGENTS, fromnodes, -1))
+<         x_dest_infos = np.reshape(dest_info, (self.env.num_agents, KNN_AGENTS, tonodes, -1))
+<         #x_all_start_infos = x_start_infos[:, :,:,NODE_DATA_EACH_DIM:NODE_DATA_DIM]
+<         #x_all_dest_infos = x_dest_infos[:,:,:,NODE_DATA_EACH_DIM:NODE_DATA_DIM]
+<         #nodes_info_gnn =  np.reshape(np.concatenate([x_all_start_infos, x_all_dest_infos], axis=2), (self.env.num_agents, KNN_AGENTS*(NUM_NODES_OF_LOCAL_GRAPH_START+NUM_NODES_OF_LOCAL_GRAPH_DEST), -1))
+< 
+< 
+<         x_each_start_infos = x_start_infos[:, :,:,0:NODE_DATA_EACH_DIM]
+<         x_each_dest_infos = x_dest_infos[:, :,:,0:NODE_DATA_EACH_DIM]
+<         pre_each_info = np.concatenate([x_each_start_infos, x_each_dest_infos], axis=2)
+< 
+<         return graphs, abst_array,  pre_each_info#, nodes_info_gnn
+---
+>         
+>         x_start_infos = np.reshape(start_info, (KNN_AGENTS, fromnodes, -1))
+>         x_dest_infos = np.reshape(dest_info, (KNN_AGENTS, tonodes, -1))
+>         x_all_start_infos = x_start_infos[:,:,NODE_DATA_EACH_DIM:NODE_DATA_DIM]
+>         x_all_dest_infos = x_dest_infos[:,:,NODE_DATA_EACH_DIM:NODE_DATA_DIM]
+>         nodes_info_gnn =  np.reshape(np.concatenate([x_all_start_infos, x_all_dest_infos], axis=1), (KNN_AGENTS*(NUM_NODES_OF_LOCAL_GRAPH_START+NUM_NODES_OF_LOCAL_GRAPH_DEST), -1))
+>         return graphs, abst_array, nodes_info_gnn
+176,189c168
+< 
+<     def make_each_info(self, pre_each_info, rows_local):
+<         each_info = np.array(
+<             [
+<                 np.array(
+<                     [
+<                         pre_each_info[agents][knnrobot][rows_local[agents][knnrobot]] for knnrobot in range(KNN_AGENTS)
+<                     ]
+<                 ) for agents in range(self.env.num_agents)
+<             ]
+<             )
+<         return each_info
+< 
+< 
+---
+>     
+236c215
+<                 sub_graph_node, abst_array, pre_each_info= self.get_nodes(observation)
+---
+>                 sub_graph_node, abst_array, nodes_info_gnn= self.get_nodes(observation)
+239d217
+<                 each_info = self.make_each_info(pre_each_info, rows_local)
+241c219
+<                 action = policy.epsilon_greedy(observation, (local_edge, rows_common, rows_local, each_info)) # get next action from policy # GNN 14.8%
+---
+>                 action = policy.epsilon_greedy(observation, local_edge, rows_common, rows_local, nodes_info_gnn) # get next action from policy # GNN 14.8%
+245c223
+<                 sub_graph_node_next, abst_array_next, pre_each_info_next= self.get_nodes(observation_next)
+---
+>                 sub_graph_node_next, abst_array_next, nodes_info_gnn_next= self.get_nodes(observation_next)
+248,249c226
+<                 each_info_next = self.make_each_info(pre_each_info_next, rows_local_next)
+< 
+---
+>                 
+263c240
+<                         self.replay_buffer.add((replay_obs.copy(), action[0], reward, replay_obs_next.copy(), terminated, local_edge[0], rows_common[0], rows_local[0], each_info[0],local_edge_next[0], rows_common_next[0], rows_local_next[0], each_info_next[0]))
+---
+>                         self.replay_buffer.add((replay_obs.copy(), action[0], reward, replay_obs_next.copy(), terminated, local_edge[0], rows_common[0], rows_local[0], nodes_info_gnn[0], local_edge_next[0], rows_common_next[0], rows_local_next[0], nodes_info_gnn_next[0]))
+299c276
+<                     sub_graph_node, abst_array, pre_each_info = self.get_nodes(observation)
+---
+>                     sub_graph_node, abst_array, nodes_info_gnn= self.get_nodes(observation)
+302,304c279,280
+<                     each_info = self.make_each_info(pre_each_info, rows_local)
+< 
+<                     action = policy.target_greedy(observation, (local_edge, rows_common, rows_local, each_info)) # GNN4.9%
+---
+>                     
+>                     action = policy.target_greedy(observation, local_edge, rows_common, rows_local, nodes_info_gnn) # GNN4.9%

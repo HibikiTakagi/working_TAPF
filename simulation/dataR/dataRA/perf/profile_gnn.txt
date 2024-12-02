@@ -1,0 +1,124 @@
+8-4-8の場合
+
+Timer unit: 1e-06 s
+
+Total time: 277.697 s
+File: /working/AGV_20240115/simulation/QNet.py
+Function: forward at line 238
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   238                                               @profile
+   239                                               def forward(self, x_local_graphinfo, x_local_node_id):
+   240    627528   80758803.5    128.7     29.1          x_local_edge = self.make_localedge(x_local_node_id)
+   241    627528  191874350.9    305.8     69.1          x = self.conv1(x_local_graphinfo, x_local_edge)
+   242    627527    4946040.5      7.9      1.8          x = F.relu(x)
+   243    627527     117836.7      0.2      0.0          return x
+
+Total time: 70.5851 s
+File: /working/AGV_20240115/simulation/QNet.py
+Function: make_localedge at line 245
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   245                                               @profile
+   246                                               def make_localedge(self, nodes_float):
+   247                                                   #nodes = torch.tensor(nodes_float, dtype=torch.int32).to('cpu').numpy()
+   248    627528   11159251.8     17.8     15.8          nodes = nodes_float.clone().detach().to(torch.int32).to('cpu').numpy()
+   249    627528     174026.3      0.3      0.2          edges_from = []
+   250    627528     100413.5      0.2      0.1          edges_to = []
+   251   3765168    2935869.5      0.8      4.2          for start_node in nodes:
+   252   7511736   10480283.9      1.4     14.8              for dest_node in self.graph_connect[start_node]:
+   253   4374096   17690934.3      4.0     25.1                  if dest_node in nodes:
+   254   2735163    9817243.2      3.6     13.9                      start_idx = np.where(nodes==start_node)[0][0]
+   255   2735163    8538979.7      3.1     12.1                      dest_idx = np.where(nodes==dest_node)[0][0]
+   256   2735163    1072728.8      0.4      1.5                      edges_from.append(start_idx)
+   257   2735163     845157.0      0.3      1.2                      edges_to.append(dest_idx)
+   258    627528    7646151.7     12.2     10.8          edges = torch.tensor([edges_from, edges_to], dtype=torch.int32).to(DEVICE)
+   259    627528     124050.5      0.2      0.2          return edges
+
+ここからは同じ実行ではない。
+
+Total time: 264.869 s
+File: /working/AGV_20240115/simulation/QNet.py
+Function: forward at line 318
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   318                                               @profile
+   319                                               def forward(self, x):
+   320                                                   #### Graph #####
+   322      2176       3952.9      1.8      0.0          batch_num = x.shape[0]
+   323      2176      21627.1      9.9      0.0          x_reshape = torch.reshape(x, (batch_num, KNN_AGENTS, -1))
+   325      2176      49366.0     22.7      0.0          x_split = torch.split(x_reshape, (self.startnode_dims,self.destnode_dims,self.fromnodes,self.tonodes, self.elsedim), dim=2)
+   326      2176      12411.0      5.7      0.0          x_start_infos = torch.reshape(x_split[0], (batch_num, KNN_AGENTS, self.fromnodes, -1))
+   327      2176       8573.2      3.9      0.0          x_dest_infos = torch.reshape(x_split[1], (batch_num, KNN_AGENTS, self.tonodes, -1))
+   328      2176        727.1      0.3      0.0          x_start_graphs = x_split[2]
+   329      2176        592.6      0.3      0.0          x_dest_graphs = x_split[3]
+   330      2176        492.5      0.2      0.0          x_elses = x_split[4]
+   331                                           
+   339      2176        642.2      0.3      0.0          x_feat = []
+   340     66840      22483.5      0.3      0.0          for batch in range(batch_num):
+   341     64665     199638.4      3.1      0.1              x_start_info = x_start_infos[batch]
+   342     64665     110896.8      1.7      0.0              x_dest_info = x_dest_infos[batch]
+   343     64665     112056.2      1.7      0.0              x_start_graph = x_start_graphs[batch]
+   344     64665     102525.5      1.6      0.0              x_dest_graph = x_dest_graphs[batch]
+   345     64665     104401.4      1.6      0.0              x_else = x_elses[batch]
+   346     64665      16108.2      0.2      0.0              x_tmp_feat = []
+
+   351    323324     187748.8      0.6      0.1              for robot in range(KNN_AGENTS):
+   352    258660     601381.4      2.3      0.2                  x_start_info_robot = x_start_info[robot]
+   353    258660     413040.5      1.6      0.2                  x_dest_info_robot = x_dest_info[robot]
+   354    258660     407396.1      1.6      0.2                  x_start_graph_robot = x_start_graph[robot]
+   355    258660     389974.5      1.5      0.1                  x_dest_graph_robot = x_dest_graph[robot]
+   356    258660     388241.2      1.5      0.1                  x_else_robot = x_else[robot]
+   357                                           
+   358    258660      74259.6      0.3      0.0                  if SAME_GNN_MODEL:
+   359    258660  112369877.5    434.4     42.4                      x_start_info_robot = self.state_graph_l1(x_start_info_robot, x_start_graph_robot)
+   360    258660  113715390.7    439.6     42.9                      x_dest_info_robot = self.dest_graph_l1(x_dest_info_robot, x_dest_graph_robot)
+   361                                                           else:
+   362                                                               x_start_info_robot = self.state_graph_l1[robot](x_start_info_robot, x_start_graph_robot)
+   363                                                               x_dest_info_robot = self.dest_graph_l1[robot](x_dest_info_robot, x_dest_graph_robot)
+   364                                                           
+   365    258659   14581755.0     56.4      5.5                  rows = self.find_indices(ACTION_LIST, x_start_graph_robot)
+   369    258659   11521225.2     44.5      4.3                  x_tmp_feat.append(torch.cat([torch.flatten(x_start_info_robot[rows]), x_dest_info_robot[0], x_else_robot]))
+   370     64664     384869.1      6.0      0.1              x_tmp_feat = torch.cat(x_tmp_feat)
+   372     64664      31303.8      0.5      0.0              x_feat.append(x_tmp_feat)
+   373                                                       
+   377      2175     311804.0    143.4      0.1          x = torch.cat(x_feat)
+   378      2175      15126.3      7.0      0.0          x = torch.reshape(x, (batch_num, -1))
+   380                                           
+   381                                                   #### Graph End #####
+   382                                           
+   383      2175    4313590.6   1983.3      1.6          x = F.relu(self.l1(x))
+   384      2175        935.1      0.4      0.0          if DIM2:
+   385                                                       x = F.relu(self.l2(x))
+   386                                           
+   387      2175        697.5      0.3      0.0          if DUELINGMODE:
+   388      2175    3982040.9   1830.8      1.5              adv = self.ladv_last(x)
+   389      2175     288825.7    132.8      0.1              v = self.lv_last(x)
+   390      2175      54761.6     25.2      0.0              averagea = adv.mean(1, keepdim=True)
+   391      2175      48737.9     22.4      0.0              return v.expand(-1, self.action_dims) + (adv - averagea.expand(-1, self.action_dims))
+   392                                                   else:
+   393                                                       x = self.l_last(x)
+   394                                                       return x
+
+Total time: 308.697 s
+File: savetraining.py
+Function: main at line 88
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    88                                               @profile
+    89                                               def main(self):
+                                                 
+   112      1141        491.8      0.4      0.0              while not done: # Do task and train in one episode while not terminated or truncated
+   113      1130   41093430.5  36365.9     13.3                  action = policy.epsilon_greedy(observation) # get next action from policy
+
+   132      1066        708.7      0.7      0.0                  if self.env.num_steps % TRAIN_FREQ == 0:
+   133       211  252636621.7    1e+06     81.8                      policy.train_batch(batch=self.replay_buffer.sample(BATCH_SIZE)) # TRAIN from replay
+   134                                                       
+
+   148       303   11267810.9  37187.5      3.7                      action = policy.target_greedy(observation)
+ 
+

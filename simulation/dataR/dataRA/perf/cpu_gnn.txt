@@ -1,0 +1,251 @@
+Timer unit: 1e-06 s
+
+Total time: 49.8892 s
+File: /working/AGV_20240115/simulation/QNet.py
+Function: make_localedge at line 495
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   495                                               @profile
+   496                                               def make_localedge(self, nodes_device, connect):
+   497    233696    1320566.4      5.7      2.6          nodes = nodes_device.to('cpu').numpy()
+   498    233696   45577893.4    195.0     91.4          edges_index = self.make_localedge_numpy(nodes, connect)
+   499    233696    2943677.0     12.6      5.9          edges_torch = torch.tensor(edges_index, dtype=torch.int64).to(DEVICE) # for Graph SAGE int64 (not int32)
+   500    233696      47083.0      0.2      0.1          return edges_torch
+
+Total time: 34.4338 s
+File: /working/AGV_20240115/simulation/QNet.py
+Function: make_localedge_numpy at line 502
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   502                                               @profile
+   503                                               def make_localedge_numpy(self, nodes_numpy, connect):
+   504    233696    2022306.8      8.7      5.9          node_to_idx = {node: idx for idx, node in enumerate(nodes_numpy)} # ここのせいで、最終的に抜き出しのindexが-1になっている注意
+   505    233696     701046.5      3.0      2.0          nodes_set = set(nodes_numpy)  # Convert to a set for faster lookup
+   506    233696      64606.9      0.3      0.2          edges_from = []
+   507    233696      55997.6      0.2      0.2          edges_to = []
+   508                                           
+   509   4907616    1236989.5      0.3      3.6          for start_node in nodes_numpy:
+   510   4673920    1286886.6      0.3      3.7              start_idx = node_to_idx[start_node]
+   511  11383412   10334723.4      0.9     30.0              for dest_node in connect[start_node]:
+   512   6709492    8011383.1      1.2     23.3                  if dest_node in nodes_set:        
+   513   4710840    7417021.2      1.6     21.5                      dest_idx = node_to_idx[dest_node]
+   514   4710840    1672875.8      0.4      4.9                      edges_from.append(start_idx)
+   515   4710840    1558573.4      0.3      4.5                      edges_to.append(dest_idx)
+   516                                           
+   517    233696      71342.2      0.3      0.2          return [edges_from, edges_to]
+
+Total time: 59.8114 s
+File: /working/AGV_20240115/simulation/QNet.py
+Function: make_gnn_dataset at line 519
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   519                                               @profile
+   520                                               def make_gnn_dataset(self, nodes_info, nodes_float, connect):
+   521    233696   51068704.6    218.5     85.4          edges_index = self.make_localedge(nodes_float, connect)
+   522    233696    8742734.9     37.4     14.6          return Data(x=nodes_info, edge_index=edges_index)  
+
+Total time: 124.523 s
+File: /working/AGV_20240115/simulation/QNet.py
+Function: forward at line 533
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   533                                               @profile
+   534                                               def forward(self, x):
+   535                                                   #### Graph #####
+   536                                                   #print(x.shape)
+   537      1983       8820.2      4.4      0.0          batch_num = x.shape[0]
+   538      1983      20845.8     10.5      0.0          x_reshape = torch.reshape(x, (batch_num, KNN_AGENTS, -1))
+   539                                                   #print(x_reshape.shape)
+   540      1983      42907.7     21.6      0.0          x_split = torch.split(x_reshape, (self.startnode_dims,self.destnode_dims,self.fromnodes,self.tonodes, self.elsedim), dim=2)
+   541      1983      11324.9      5.7      0.0          x_start_infos = torch.reshape(x_split[0], (batch_num, KNN_AGENTS, self.fromnodes, -1))
+   542      1983       8915.7      4.5      0.0          x_dest_infos = torch.reshape(x_split[1], (batch_num, KNN_AGENTS, self.tonodes, -1))
+   543      1983      63184.6     31.9      0.1          x_start_graphs = x_split[2].clone().detach().to(torch.int32)
+   544      1983      21048.0     10.6      0.0          x_dest_graphs = x_split[3].clone().detach().to(torch.int32)
+   545      1983        639.5      0.3      0.0          x_elses = x_split[4]
+   546                                           
+   547      1983        832.9      0.4      0.0          x_feat = []
+   548      1983      46723.9     23.6      0.0          x_start_nodes_zero = x_start_graphs[:,:,0].to('cpu').numpy()
+   549      1983      19601.5      9.9      0.0          x_dest_nodes_zero = x_dest_graphs[:,:,0].to('cpu').numpy()
+   550                                           
+   551                                                   #print(x_start_infos.shape)
+   552      1983        616.5      0.3      0.0          datasets = []
+   553     60407      19697.3      0.3      0.0          for batch in range(batch_num):
+   554     58424     345425.6      5.9      0.3              x_start_info = x_start_infos[batch]
+   555     58424     115281.8      2.0      0.1              x_dest_info = x_dest_infos[batch]
+   556     58424     105090.3      1.8      0.1              x_start_graph = x_start_graphs[batch]
+   557     58424      97439.8      1.7      0.1              x_dest_graph = x_dest_graphs[batch]
+   558    292120     130879.7      0.4      0.1              for robot in range(KNN_AGENTS):
+   559    233696    1099168.4      4.7      0.9                  x_start_info_robot = x_start_info[robot]
+   560    233696     431295.7      1.8      0.3                  x_dest_info_robot = x_dest_info[robot]
+   561    233696     422827.6      1.8      0.3                  x_start_graph_robot = x_start_graph[robot]
+   562    233696     410127.4      1.8      0.3                  x_dest_graph_robot = x_dest_graph[robot]
+   563                                           
+   564                                                           #print(x_start_info_robot.shape)
+   565                                                           #print(x_start_graph_robot.shape)
+   566    233696    1541748.4      6.6      1.2                  x_info = torch.cat([x_start_info_robot, x_dest_info_robot], dim=0)
+   567    233696    1877921.8      8.0      1.5                  x_graph = torch.cat([x_start_graph_robot, x_dest_graph_robot], dim=0)
+   568                                                           #print(x_info.shape)
+   569                                                           #print(x_graph.shape)
+   570                                           
+   571    233696   60931346.7    260.7     48.9                  datasets.append(self.make_gnn_dataset(x_info, x_graph, CONNECTDICT))
+   572      1983     105854.6     53.4      0.1          dataset_loader = DataLoader(datasets, batch_size=len(datasets), shuffle=False)
+   573      1983        590.9      0.3      0.0          x_infos = []
+   574      3966    9239436.2   2329.7      7.4          for data in dataset_loader:
+   575                                                       #print(data.x.shape)
+   576                                                       #print(data.edge_index)
+   577      1983   16650909.1   8396.8     13.4              x_data = self.state_graph_l1(data.x, data.edge_index)
+   578      1983      36130.4     18.2      0.0              x_data = F.relu(x_data)
+   579      1983       2022.5      1.0      0.0              x_infos.append(x_data)
+   580                                                   
+   581      1983      32149.9     16.2      0.0          x_infos_after_gnn = torch.cat(x_infos)
+   582      1983      26732.8     13.5      0.0          x_infos_after_gnn = x_infos_after_gnn.reshape((batch_num, KNN_AGENTS, self.fromnodes+self.tonodes, -1))
+   583                                           
+   584     60407      21397.5      0.4      0.0          for batch in range(batch_num):
+   585     58424     282843.0      4.8      0.2              x_info = x_infos_after_gnn[batch]
+   586     58424     119347.7      2.0      0.1              x_start_graph = x_start_graphs[batch]
+   587     58424     102260.0      1.8      0.1              x_dest_graph = x_dest_graphs[batch]
+   588     58424     115348.1      2.0      0.1              x_else = x_elses[batch]
+   589                                           
+   590     58424      72134.0      1.2      0.1              x_start_node_zero = x_start_nodes_zero[batch]
+   591     58424      24468.1      0.4      0.0              x_dest_node_zero = x_dest_nodes_zero[batch]
+   592                                           
+   593     58424      14275.9      0.2      0.0              x_tmp_feat = []
+   594    292120     142914.3      0.5      0.1              for robot in range(KNN_AGENTS):
+   595    233696     966821.9      4.1      0.8                  x_info_robot = x_info[robot]
+   596    233696     431510.5      1.8      0.3                  x_start_graph_robot = x_start_graph[robot]
+   597    233696     412623.3      1.8      0.3                  x_dest_graph_robot = x_dest_graph[robot]
+   598    233696     416456.2      1.8      0.3                  x_else_robot = x_else[robot]
+   599    233696     231320.8      1.0      0.2                  x_start_node_zero_robot = x_start_node_zero[robot]
+   600    233696      67709.0      0.3      0.1                  x_dest_node_zero_robot = x_dest_node_zero[robot]
+   601                                           
+   602    233696    1906644.2      8.2      1.5                  x_graph_robot = torch.cat([x_start_graph_robot, x_dest_graph_robot], dim=0)
+   603                                           
+   604    233696     260417.3      1.1      0.2                  abst_list = ACTION_LIST[x_start_node_zero_robot][:]
+   605    233696     123810.6      0.5      0.1                  abst_list.append(x_dest_node_zero_robot)
+   606                                                           #print(abst_list)
+   607    233696    6441404.8     27.6      5.2                  rows = self.find_indices(abst_list, x_graph_robot)
+   608    233696    7760623.3     33.2      6.2                  x_tmp_feat.append(torch.cat([torch.flatten(x_info_robot[rows]), x_else_robot]))
+   609                                           
+   610     58424     325684.7      5.6      0.3              x_tmp_feat = torch.cat(x_tmp_feat)
+   611     58424      36833.0      0.6      0.0              x_feat.append(x_tmp_feat)
+   612                                           
+   613      1983      66033.7     33.3      0.1          x = torch.cat(x_feat)
+   614      1983      12909.8      6.5      0.0          x = torch.reshape(x, (batch_num, -1))
+   615                                           
+   616                                                   #### Graph End #####
+   617                                           
+   618      1983    4549099.4   2294.0      3.7          x = F.relu(self.l1(x))
+   619      1983        962.6      0.5      0.0          if DIM2:
+   620                                                       x = F.relu(self.l2(x))
+   621                                           
+   622      1983        578.9      0.3      0.0          if DUELINGMODE:
+   623      1983    5395704.7   2721.0      4.3              adv = self.ladv_last(x)
+   624      1983     258874.0    130.5      0.2              v = self.lv_last(x)
+   625      1983      49932.9     25.2      0.0              averagea = adv.mean(1, keepdim=True)
+   626      1983      44051.7     22.2      0.0              return v.expand(-1, self.action_dims) + (adv - averagea.expand(-1, self.action_dims))
+   627                                                   else:
+   628                                                       x = self.l_last(x)
+   629                                                       return x
+
+Total time: 158.311 s
+File: savetraining.py
+Function: main at line 88
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    88                                               @profile
+    89                                               def main(self):
+    90         1      57004.6  57004.6      0.0          policy = DeepQPolicy(self.env.net_state_dim, self.env.net_act_dim, self.env.num_agents, self.env.graph)
+    91                                                   #replay_buffer = ReplayBuffer()
+    92                                           
+    93         1          1.9      1.9      0.0          sync_cnt=0
+    94         1          1.9      1.9      0.0          target_returns = [] # target return log
+    95         1          2.1      2.1      0.0          returns = [] # return log
+    96         1          1.4      1.4      0.0          losses = [] # loss log
+    97         1          0.5      0.5      0.0          num_of_train = 0
+    98                                           
+    99         2       6631.5   3315.8      0.0          with open(self.model_file, "w") as f:
+   100         1        193.5    193.5      0.0                  f.write(f'{policy._q_network}')
+   101                                           
+   102                                                   
+   103        11       6298.5    572.6      0.0          for eps in tqdm(range(TRAIN_EPS)): # repeat for DQN train episode
+   104                                                       # var init
+   105        11          3.8      0.3      0.0              log_eps_return = 0
+   106        11          2.9      0.3      0.0              done = False
+   107        11      75439.6   6858.1      0.0              observation = self.env.reset()
+   108        11         21.2      1.9      0.0              observation_next = observation.copy()
+   109        11         13.4      1.2      0.0              replay_obs = self.env.replay_obs.copy()
+   110        11         13.6      1.2      0.0              replay_obs_next = self.env.replay_obs_next.copy() # obs next間のエージェントが種類が違うせいで性能落ち？
+   111                                                       
+   112      1031        473.4      0.5      0.0              while not done: # Do task and train in one episode while not terminated or truncated
+   113      1021   25498206.8  24973.8     16.1                  action = policy.epsilon_greedy(observation) # get next action from policy
+   114      1021    2930091.9   2869.8      1.9                  observation_next, reward, terminated, truncated, _ = self.env.step(action) # do action
+   115      1020        522.5      0.5      0.0                  done = terminated or truncated
+   116      1020        409.5      0.4      0.0                  if KNN_MODE: # What is KNN mode?
+   117      1020       1651.6      1.6      0.0                      replay_obs_next[:] = self.env.replay_obs_next[:]
+   118                                           
+   119      1020       1994.7      2.0      0.0                  log_eps_return += (GAMMA**self.env.num_steps)*reward # reward decreases as step increases
+   120      1020        365.3      0.4      0.0                  sync_cnt += 1
+   121                                                           # record replay
+   122      1020        205.9      0.2      0.0                  if KNN_MODE:
+   123      1020     303197.2    297.3      0.2                      self.replay_buffer.add((replay_obs.copy(), action.copy(), reward, replay_obs_next.copy(), terminated))
+   124                                                           else:
+   125                                                               self.replay_buffer.add((observation.copy(), action.copy(), reward, observation_next.copy(), terminated))
+   126      1020       1906.6      1.9      0.0                  observation[:] = observation_next[:] # get updated ovservation(env's situation?)
+   127      1020        344.9      0.3      0.0                  if KNN_MODE:
+   128      1020       1289.3      1.3      0.0                      replay_obs[:] = self.env.replay_obs[:]
+   129      1020       1900.6      1.9      0.0                  if len(self.replay_buffer) < BATCH_SIZE:
+   130        63         16.4      0.3      0.0                      continue
+   131                                           
+   132       957        623.2      0.7      0.0                  if self.env.num_steps % TRAIN_FREQ == 0:
+   133       190  122559704.4 645051.1     77.4                      policy.train_batch(batch=self.replay_buffer.sample(BATCH_SIZE)) # TRAIN from replay
+   134                                                       
+   135                                                       else:
+   136        10         11.5      1.1      0.0                  returns.append(log_eps_return)
+   137        10          4.2      0.4      0.0                  if sync_cnt>=SYNC_FREQ:
+   138         2       2028.5   1014.2      0.0                      policy.sync() # update(sync) policy from trained data when enough steps have ended
+   139         2          0.7      0.4      0.0                      sync_cnt=0
+   140                                                       
+   141        10         56.7      5.7      0.0              losses.append([eps, policy.loss])
+   142                                           
+   143        10          4.7      0.5      0.0              if sync_cnt==0 or eps==0: # if policy has synchronised or first episode
+   144         3          1.0      0.3      0.0                  log_target_return = 0
+   145         3          0.9      0.3      0.0                  done = False
+   146         3      19483.6   6494.5      0.0                  observation = self.env.reset()
+   147       306         84.4      0.3      0.0                  while not done:
+   148       303    5737253.2  18934.8      3.6                      action = policy.target_greedy(observation)
+   149       303     857752.6   2830.9      0.5                      observation_next, reward, terminated, truncated, _ = self.env.step(action) 
+   150       303        261.1      0.9      0.0                      done = terminated or truncated
+   151       303        597.1      2.0      0.0                      log_target_return += (GAMMA**self.env.num_steps)*reward
+   152       303        145.9      0.5      0.0                      observation = observation_next
+   153                                                       
+   154        10          5.8      0.6      0.0              if num_of_train%100==0:
+   155                                                           # save return and losses log every 100 loops
+   156         1     135840.4 135840.4      0.1                  self.save_fig_conv_return(returns=returns, target_returns=target_returns)
+   157         1     100550.4 100550.4      0.1                  self.save_fig_losses(losses=losses)
+   158                                           
+   159         1       8582.1   8582.1      0.0                  policy.save_network(self.tmptrain_file,self.tmptarget_file)
+   160                                           
+   161        10         16.8      1.7      0.0              target_returns.append(log_target_return)
+   162        10        105.9     10.6      0.0              policy.setepsilon()
+   163        10          6.0      0.6      0.0              num_of_train += 1
+   164                                           
+   165                                                   np.save(self.tmpreturns, returns)
+   166                                                   np.save(self.tmptargetreturns, target_returns)
+   167                                                   np.save(self.tmplosses, losses)
+   168                                                   policy.save_network(self.tmptrain_file, self.tmptarget_file)
+   169                                           
+   170                                                   self.save_fig_conv_return(returns=returns, target_returns=target_returns)
+   171                                                   self.save_fig_losses(losses=losses)
+   172                                           
+   173                                                   writer = SummaryWriter(self.boarddir)
+   174                                                   for i in range(len(target_returns)):
+   175                                                       writer.add_scalar("Returns", returns[i], i)
+   176                                                       writer.add_scalar("Target Returns", target_returns[i], i)
+   177                                                       #writer.add_scalar("loss", losses[i], i)
+   178                                                   writer.close()
+

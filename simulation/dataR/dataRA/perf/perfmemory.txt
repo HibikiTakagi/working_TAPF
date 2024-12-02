@@ -1,0 +1,224 @@
+Filename: savetraining.py
+
+Line #    Mem usage    Increment  Occurrences   Line Contents
+=============================================================
+   100  404.336 MiB  404.336 MiB           1       @profile
+   101                                             def main(self):
+   102                                                 #logging.basicConfig(level=logging.DEBUG)
+   103                                         
+   104                                                 #graph, robots = example_data()
+   105  404.336 MiB    0.000 MiB           1           graph = GRAPH
+   106  404.336 MiB    0.000 MiB           1           robots = self.robots
+   107  404.594 MiB    0.000 MiB           2           with open(self.tmpembeddings_file, "rb") as f:
+   108  404.594 MiB    0.258 MiB           1               node_embeddings = pickle.load(f)
+   109  404.594 MiB    0.000 MiB           1           env = RobotsRoutingEnvironment(graph, robots, orirobots = ORIROBOTS, embedding=node_embeddings)
+   110  404.594 MiB    0.000 MiB           1           encoder = StateEncoder(env, node_embeddings)
+   111  404.594 MiB    0.000 MiB           1           decoder = ActionDecoder(env)
+   112  409.664 MiB    5.070 MiB           1           policy = DeepQPolicy(state_encoder=encoder, action_decoder=decoder)
+   113                                         
+   114  409.664 MiB    0.000 MiB           1           if PRIMODE:
+   115                                                     replay_buffer = PriorityReplayBuffer(capacity=BUF_CAPASITY)
+   116                                                     TD_memory = Memory_TDerror(capacity=BUF_CAPASITY, encoder=encoder, decoder=decoder)
+   117                                                 else:
+   118  409.664 MiB    0.000 MiB           1               replay_buffer = ReplayBuffer(capacity=BUF_CAPASITY)
+   119                                         
+   120  409.664 MiB    0.000 MiB           2           with open(self.model_file, "w") as f:
+   121  409.664 MiB    0.000 MiB           1               if ACMODE:
+   122                                                         f.write(f'{policy._actor_net}')
+   123                                                         f.write(f'{policy._critic_net}')
+   124                                                     else:
+   125  409.664 MiB    0.000 MiB           1                   f.write(f'{policy._q_network}')
+   126                                         
+   127  409.664 MiB    0.000 MiB           1           self.logfileinitial()
+   128  409.664 MiB    0.000 MiB           1           target_returns = []
+   129  409.664 MiB    0.000 MiB           1           returns = []
+   130                                                     
+   131  409.664 MiB    0.000 MiB           1           best_return = INI_BEST_RETURN
+   132  409.664 MiB    0.000 MiB           1           sync_count = 0
+   133  409.664 MiB    0.000 MiB           1           losses = []
+   134                                         
+   135                                                 # start training
+   136  409.664 MiB    0.000 MiB           1           gamma = env.gamma
+   137  409.664 MiB    0.000 MiB           1           logt = 0
+   138  409.664 MiB    0.000 MiB           1           num_of_train = 0
+   139                                                 # main training loop
+   140  451.492 MiB    0.000 MiB           6           for eps in range(TRAIN_EPS):
+   141                                         
+   142  447.883 MiB    0.000 MiB           5               if RANDOMMODE:
+   143                                                         env.robot_reset()
+   144                                                     
+   145  447.883 MiB    0.000 MiB           5               if TASKRANDOMMODE and TASKRANDOMSTART<=eps and eps%TASKRANDOMFREQ==0:
+   146                                                         env.task_reset()
+   147                                                     
+   148  447.883 MiB    0.000 MiB           5               env.reset()
+   149                                                     #logging.info(f"Episode: {eps+1}")
+   150                                         
+   151                                                     # start = time.perf_counter()
+   152  447.883 MiB    0.000 MiB           5               eps_return = 0
+   153  451.492 MiB    0.000 MiB        2505               while (
+   154  451.492 MiB    0.000 MiB        2505                   not env.current_state.is_terminal
+   155  451.492 MiB    0.000 MiB        2505                   and env.timestep < MAX_TIMESTEP
+   156                                                     ):
+   157  451.492 MiB    0.000 MiB        2500                   s = env.current_state
+   158  451.492 MiB    0.773 MiB        2500                   encoded_s = encoder.encode(s)               #18.5%
+   159  451.492 MiB    0.000 MiB        2500                   policy.set_encoded_s(encoded_s=encoded_s)
+   160  451.492 MiB    0.000 MiB        2500                   if ACMODE:
+   161                                                             a, prob = policy.epsilon_greedy(s)
+   162                                                         else:
+   163  451.492 MiB    0.516 MiB        2500                       a = policy.epsilon_greedy(s)            # 5.2%
+   164  451.492 MiB    0.258 MiB        2500                   rw, new_s = env.transition(a)               # 8.4%
+   165                                                         #a = env.exe_a # add by sugimoto
+   166  451.492 MiB    0.000 MiB        2500                   eps_return += (gamma**env.timestep) * rw
+   167  451.492 MiB    0.000 MiB        2500                   done = env.current_state.is_terminal
+   168                                                         #logging.debug(f"T={t+1}: {a} -> {rw}")
+   169  451.492 MiB    0.000 MiB        2500                   sync_count += 1
+   170                                                         
+   171  451.492 MiB    0.000 MiB        2500                   if ACMODE:
+   172                                                             pass
+   173  451.492 MiB    0.000 MiB        2500                   elif PRIMODE:
+   174                                                             #replay_buffer.add((s, a, rw, new_s, done))
+   175                                                             encoded_s = encoded_s[0]
+   176                                                             encoded_new_s = encoder.encode(new_s)[0]
+   177                                                             replay_buffer.add((s, a, rw, new_s, done, encoded_s, encoded_new_s))
+   178                                                             # TDerror = TD_memory.get_TDerror(replay_buffer, gamma, q_network, target_network)
+   179                                                             # TD_memory.add(TDerror)
+   180                                                             TD_memory.add(0)
+   181                                                             if len(replay_buffer) < BATCH_SIZE:
+   182                                                                 # not enough experience to train, so
+   183                                                                 continue
+   184                                                         else:
+   185  451.492 MiB    0.000 MiB        2500                       encoded_s = encoded_s[0]
+   186  451.492 MiB    1.965 MiB        2500                       encoded_new_s = encoder.encode(new_s)[0] #18,8%
+   187  451.492 MiB    0.000 MiB        2500                       replay_buffer.add((s, a, rw, new_s, done, encoded_s, encoded_new_s))
+   188                                                             #replay_buffer.add((s, a, rw, new_s, done))
+   189  451.492 MiB    0.000 MiB        2500                       if len(replay_buffer) < BATCH_SIZE:
+   190                                                                 # not enough experience to train, so
+   191  410.340 MiB    0.000 MiB          63                           continue
+   192                                         
+   193  451.492 MiB    0.000 MiB        2437                   if ACMODE:
+   194                                                             policy.ac_train(batch=(s,a,rw,new_s,done),prob=prob,gamma=gamma)
+   195  451.492 MiB    0.000 MiB        2437                   elif env.timestep % TRAIN_FREQ == 0:
+   196  451.492 MiB    0.000 MiB         488                       if PRIMODE:
+   197                                                                 if num_of_train < MAX_TRAIN_EPS/2:
+   198                                                                     policy.train_batch_without_p(batch=replay_buffer.sample(BATCH_SIZE), gamma=gamma)
+   199                                                                     losses.append([eps, policy.loss])
+   200                                                                 else:
+   201                                                                     policy.train_batch_with_p(batch=replay_buffer, batch_size=BATCH_SIZE, gamma=gamma, TD_memory=TD_memory)
+   202                                                                     losses.append([eps, policy.loss])
+   203                                                             else:
+   204  451.492 MiB   35.000 MiB         488                           policy.train_batch(batch=replay_buffer.sample(BATCH_SIZE), gamma=gamma) #37.6%
+   205  451.492 MiB    0.000 MiB         488                           losses.append([eps, policy.loss])
+   206                                                     else:
+   207                                                         #logging.info( f"Episode {eps+1}, maximum timestep {t+1}: Return: {eps_return}")
+   208  451.492 MiB    0.000 MiB           5                   returns.append(eps_return)
+   209  451.492 MiB    0.000 MiB           5                   logt = env.timestep
+   210  451.492 MiB    0.000 MiB           5                   if PRIMODE:
+   211                                                             if num_of_train + 100 < MAX_TRAIN_EPS/2:
+   212                                                                 pass
+   213                                                             else:
+   214                                                                 TD_memory.update_TDerror(replay_buffer, gamma, policy._q_network, policy._target_network)
+   215  451.492 MiB    0.000 MiB           5                   if sync_count >= SYNC_FREQ:
+   216                                                             # synchronize weight from behavior net to target net
+   217  451.492 MiB    0.000 MiB           5                       policy.targetsync()
+   218  451.492 MiB    0.000 MiB           5                       sync_count = 0
+   219                                         
+   220                                                     # time_elapsed = time.perf_counter() - start
+   221                                                     #logging.info(f"Episode {eps+1}: {time_elapsed:.2f}s elapsed")
+   222                                         
+   223                                                     #logging.info(f"Episode {eps+1}: Evaluating target policy")
+   224  451.492 MiB    0.000 MiB           5               if sync_count == 0 or eps==0:
+   225  451.492 MiB    0.000 MiB           5                   env.reset()
+   226  451.492 MiB    0.000 MiB           5                   rt = 0
+   227  451.492 MiB    0.000 MiB        2505                   while (
+   228  451.492 MiB    0.000 MiB        2505                       not env.current_state.is_terminal
+   229  451.492 MiB    0.000 MiB        2505                       and env.timestep < MAX_TIMESTEP_TARGET
+   230                                                         ):
+   231  451.492 MiB    0.000 MiB        2500                       s = env.current_state
+   232  451.492 MiB    0.000 MiB        2500                       encoded_s = encoder.encode(s) #4.1%
+   233  451.492 MiB    0.000 MiB        2500                       policy.set_encoded_s(encoded_s=encoded_s)
+   234  451.492 MiB    0.000 MiB        2500                       if ACMODE:
+   235                                                                 a, prob = policy.target_greedy(s)
+   236                                                             else:
+   237  451.492 MiB    0.000 MiB        2500                           a = policy.target_greedy(s)
+   238  451.492 MiB    0.000 MiB        2500                       rw, new_s = env.transition(a)
+   239  451.492 MiB    0.000 MiB        2500                       rt += (gamma**env.timestep) * rw
+   240  451.492 MiB    0.000 MiB           5                   if rt > best_return:
+   241  447.883 MiB    0.000 MiB           3                       best_return = rt
+   242                                                             #best_network.set_weights(target_network.get_weights())
+   243  447.883 MiB    0.000 MiB           3                       policy.bestsync()
+   244  451.492 MiB    0.000 MiB           5                   envt = env.timestep
+   245  451.492 MiB    0.000 MiB           5                   envcc = env.collision_count
+   246                                         
+   247  451.492 MiB    0.000 MiB           5               if num_of_train%100==0:
+   248  432.676 MiB    0.754 MiB           1                   fig_convergence_return, ax = plt.subplots()
+   249  432.934 MiB    0.258 MiB           1                   plt.plot(returns,label="train_return") 
+   250  432.934 MiB    0.000 MiB           1                   plt.plot(target_returns,label="target_return")
+   251  432.934 MiB    0.000 MiB           1                   ax.set_xlabel('episodes')
+   252  432.934 MiB    0.000 MiB           1                   ax.set_ylabel('Returns')
+   253  432.934 MiB    0.000 MiB           1                   ax.grid(True)
+   254  432.934 MiB    0.000 MiB           1                   plt.legend(loc=0)
+   255  434.461 MiB    1.527 MiB           1                   fig_convergence_return.savefig(self.dirnamesla+"convergence.png")
+   256  434.461 MiB    0.000 MiB           1                   plt.clf()
+   257  434.461 MiB    0.000 MiB           1                   plt.close()
+   258                                         
+   259  434.461 MiB    0.000 MiB           1                   fig_loss, ax = plt.subplots()
+   260                                                         #plt.plot(losses, label='loss')
+   261  434.461 MiB    0.000 MiB           1                   x_eps, y_loss = zip(*losses)
+   262                                                         #plt.scatter(x_eps,y_loss, label='loss')
+   263  434.461 MiB    0.000 MiB           1                   plt.plot(x_eps,y_loss, '-',label='loss')
+   264  434.461 MiB    0.000 MiB           1                   ax.set_xlabel('episodes')
+   265  434.461 MiB    0.000 MiB           1                   ax.set_ylabel('loss')
+   266  434.461 MiB    0.000 MiB           1                   ax.grid(True)
+   267  434.461 MiB    0.000 MiB           1                   plt.legend(loc=0)
+   268  435.238 MiB    0.777 MiB           1                   fig_loss.savefig(self.dirnamesla+"loss.png")
+   269  435.238 MiB    0.000 MiB           1                   plt.clf()
+   270  435.238 MiB    0.000 MiB           1                   plt.close()
+   271                                         
+   272  435.238 MiB    0.000 MiB           1                   policy.save_network(self.tmptrain_file,self.tmptarget_file,self.tmpbest_file)
+   273                                         
+   274                                                         
+   275  451.492 MiB    0.000 MiB           5               target_returns.append(rt)
+   276                                                     #logging.info(f"Episode {eps+1}: Evaluating: tooks {env.timestep} steps with return {rt}")
+   277  451.492 MiB    0.000 MiB           5               self.logfile(num_of_train, logt, eps_return, a, policy._epsilon, envt, rt, envcc)
+   278  451.492 MiB    0.000 MiB           5               policy.setepsilon()
+   279  451.492 MiB    0.000 MiB           5               num_of_train += 1
+   280                                         
+   281  451.492 MiB    0.000 MiB           1           np.save(self.tmpreturns, returns)
+   282  451.492 MiB    0.000 MiB           1           np.save(self.tmptargetreturns, target_returns)
+   283  451.492 MiB    0.000 MiB           1           np.save(self.tmplosses, losses)
+   284  451.492 MiB    0.000 MiB           1           policy.save_network(self.tmptrain_file,self.tmptarget_file,self.tmpbest_file)
+   285  451.492 MiB    0.000 MiB           1           self.save_bestreturn(best_return)
+   286  451.492 MiB    0.000 MiB           1           self.save_synccount(sync_count)
+   287  454.328 MiB    0.000 MiB           2           with open(self.tmpreplaybuffer_file, "wb") as f:
+   288  454.328 MiB    2.836 MiB           1               pickle.dump(replay_buffer, f, protocol=pickle.HIGHEST_PROTOCOL)
+   289  454.328 MiB    0.000 MiB           1           if PRIMODE:
+   290                                                     with open(self.tmpreplayerrorbuffer_file, "wb") as f:
+   291                                                         pickle.dump(TD_memory, f, protocol=pickle.HIGHEST_PROTOCOL)
+   292                                         
+   293  454.328 MiB    0.000 MiB           1           fig_convergence_return, ax = plt.subplots()
+   294  454.328 MiB    0.000 MiB           1           plt.plot(returns,label="train_return") 
+   295  454.328 MiB    0.000 MiB           1           plt.plot(target_returns,label="target_return")
+   296  454.328 MiB    0.000 MiB           1           ax.set_xlabel('episodes')
+   297  454.328 MiB    0.000 MiB           1           ax.set_ylabel('Returns')
+   298  454.328 MiB    0.000 MiB           1           ax.grid(True)
+   299  454.328 MiB    0.000 MiB           1           plt.legend(loc=0)
+   300  454.328 MiB    0.000 MiB           1           fig_convergence_return.savefig(self.dirnamesla+"convergence.png")
+   301  454.328 MiB    0.000 MiB           1           plt.clf()
+   302  454.328 MiB    0.000 MiB           1           plt.close()
+   303                                                 #'''
+   304  454.328 MiB    0.000 MiB           1           fig_loss, ax = plt.subplots()
+   305                                                 #plt.plot(losses, label='loss')
+   306  454.328 MiB    0.000 MiB           1           x_eps, y_loss = zip(*losses)
+   307                                                 #plt.scatter(x_eps,y_loss, label='loss')
+   308  454.328 MiB    0.000 MiB           1           plt.plot(x_eps,y_loss, '-',label='loss')
+   309  454.328 MiB    0.000 MiB           1           ax.set_xlabel('episodes')
+   310  454.328 MiB    0.000 MiB           1           ax.set_ylabel('loss')
+   311  454.328 MiB    0.000 MiB           1           ax.grid(True)
+   312  454.328 MiB    0.000 MiB           1           plt.legend(loc=0)
+   313  455.102 MiB    0.773 MiB           1           fig_loss.savefig(self.dirnamesla+"loss.png")
+   314  455.102 MiB    0.000 MiB           1           plt.clf()
+   315  455.102 MiB    0.000 MiB           1           plt.close()
+   316                                                 
+   317                                                 #'''
+
+
