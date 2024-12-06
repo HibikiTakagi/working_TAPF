@@ -1,18 +1,18 @@
 import random
 
 class TaskManager():
-    def __init__(self, len_node, agents_num):
+    def __init__(self, len_node, agents_num, node_distances, assign_policy):
         self.len_node = len_node
         self.agents_num = agents_num
         self.assigned_tasks = set()
         self.assigned_tasks_num = agents_num
         self.not_assigned_tasks = set()
-        self.not_assigned_tasks_num = agents_num
         self.not_tasks_node = set(range(len_node))
         self.reserved_tasks = set()
         self.assigned_task_checker = [-1] * agents_num
         self.reserved_task_checker = [-1] * agents_num
-
+        self.node_distances = node_distances
+        self.assign_policy = assign_policy
         self.completetasks = 0
 
     def reset_tasks(self):
@@ -23,7 +23,7 @@ class TaskManager():
         self.reserved_tasks.clear()
         self.completetasks = 0
         '''
-        selected_tasks = random.sample(list(self.not_tasks_node), self.not_assigned_tasks_num*2)
+        selected_tasks = random.sample(list(self.not_tasks_node), self.agents_num*3)
         self.not_tasks_node = self.not_tasks_node - set(selected_tasks)
         self.not_assigned_tasks |= set(selected_tasks)
 
@@ -41,14 +41,21 @@ class TaskManager():
         '''
         self.assigned_tasks.remove(complete_task)
         self.assigned_task_checker[robot_id] = -1
-        self.assigned_tasks_num = self.assigned_tasks_num - 1
         new_task = random.choice(list(self.not_tasks_node))
         self.not_tasks_node.remove(new_task)
         self.not_assigned_tasks.add(new_task)
         self.not_tasks_node.add(complete_task)
         self.completetasks += 1
-
-    def reserve_next_task(self, robot_id):
+    
+    def reserve_next_task(self, robot_id, state_node = None):
+        if self.assign_policy == "random_mode":
+            return self.reserve_next_task_random(robot_id)
+        elif self.assign_policy == "classic_mode":
+            return self.reserve_next_task_classic(robot_id, state_node)
+        else:
+            raise ValueError(f"Unknown assign policy: {self.assign_policy}")
+    
+    def reserve_next_task_random(self, robot_id):
         if self.reserved_task_checker[robot_id] != -1:
             '''
             if robot_id == 3:
@@ -63,6 +70,23 @@ class TaskManager():
         if robot_id == 3:
             print(f"エージェント{robot_id}がノード{reserve_task}を予約しました。")
         '''
+        return reserve_task
+
+    def reserve_next_task_classic(self, robot_id, state_node):
+        if self.reserved_task_checker[robot_id] != -1:
+            return self.reserved_task_checker[robot_id]
+        #reserve_task  = random.choice(list(self.not_assigned_tasks))
+        robot_task_dist_min = self.len_node #infの代用
+        reserve_task = self.len_node #nilの代わり
+        for reserve_task_cand in self.not_assigned_tasks:
+            robot_task_dist = self.node_distances[state_node][reserve_task_cand]
+            if robot_task_dist < robot_task_dist_min:
+                robot_task_dist_min = robot_task_dist
+                reserve_task = reserve_task_cand
+                
+        self.not_assigned_tasks.remove(reserve_task)
+        self.reserved_tasks.add(reserve_task)
+        self.reserved_task_checker[robot_id] = reserve_task
         return reserve_task
 
     def reserved_task_assign(self, robot_id):
@@ -89,6 +113,15 @@ class TaskManager():
             print(f"エージェント{robot_id}に予約済みノード{reserved_task}を割当てました。")
         '''
         return reserved_task
+
+    def cancel_reserved_task(self, robot_id):
+        reserved_task = self.reserved_task_checker[robot_id]
+        if reserved_task == -1:
+            print("キャンセルできる予約がありません。")
+            return
+        self.reserved_tasks.remove(reserved_task)
+        self.reserved_task_checker[robot_id] = -1
+        self.not_assigned_tasks.add(reserved_task)
 
     '''
     def delete_reserved_task(self, robot_id):

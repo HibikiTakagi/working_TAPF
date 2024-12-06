@@ -137,6 +137,31 @@ def create_directed_graph(rows=40, cols=40, removed_nodes=None, removes=0):
     #assert is_connected(graph)
     #return graph
 
+def create_normal_undirected_graph(rows=5, cols=5):
+    LEN_NODE = rows * cols
+    POST_PICKER_NODE = 0
+    #CONNECTDICT = {0: [1, 5], 1: [0, 2, 6], 2: [1, 3, 7], 3: [2, 4, 8], 4: [3, 9], 5: [0, 6, 10], 6: [1, 5, 7, 11], 7: [2, 6, 8, 12], 8: [3, 7, 9, 13], 9: [4, 8, 14], 10: [5, 11, 15], 11:[6, 10, 12, 16], 12: [7, 11, 13, 17], 13: [8, 12, 14, 18], 14: [9, 13, 19], 15: [10, 16, 20], 16: [11, 15, 17, 21], 17: [12, 16, 18, 22], 18: [13, 17, 19, 23], 19: [14, 18, 24], 20: [15, 21], 21: [16, 20, 22], 22: [17, 21, 23], 23: [18, 22, 24], 24: [19, 23]}
+    CONNECTDICT = {}
+    #POSITIONDICT = {0: (0, 0), 1: (1, 0), 2: (2, 0), 3: (3, 0), 4: (4, 0), 5: (0, 1), 6: (1, 1), 7: (2, 1), 8: (3, 1), 9: (4, 1), 10: (0, 2), 11: (1, 2), 12: (2, 2), 13: (3, 2), 14: (4, 2), 15: (0, 3), 16: (1, 3), 17: (2, 3), 18: (3, 3), 19: (4, 3), 20: (0, 4), 21: (1, 4), 22: (2, 4), 23: (3, 4), 24: (4, 4)}
+    POSITIONDICT = {}
+    for row in range(rows):
+        for col in range(cols):
+            node = row * cols + col
+            POSITIONDICT[node] = (col, row)
+            neighbors = []
+            if col > 0:  # 左のノード
+                neighbors.append(node - 1)
+            if col < cols - 1:  # 右のノード
+                neighbors.append(node + 1)
+            if row > 0:  # 上のノード
+                neighbors.append(node - cols)
+            if row < rows - 1:  # 下のノード
+                neighbors.append(node + cols)
+            CONNECTDICT[node] = neighbors
+
+    PHYSICAL_CONNECT_DICT = CONNECTDICT
+    return LEN_NODE, POST_PICKER_NODE, CONNECTDICT, PHYSICAL_CONNECT_DICT, POSITIONDICT
+
 def dict_to_networkx(adj_list):
     G = nx.DiGraph()
     for node, neighbors in adj_list.items():
@@ -290,6 +315,10 @@ MAX_LEN_NODE = 200
 TASK_ASSIGN_MODE = True
 SINGLE_TASK_MODE = False
 
+if TASK_ASSIGN_MODE:
+    ASSIGN_POLICIES = ["random_mode", "classic_mode"]
+    ASSIGN_POLICY = ASSIGN_POLICIES[0]
+
 if TEST_MODE:
     IS_RANDOM = False
     #IS_RANDOM = True
@@ -298,7 +327,8 @@ if TEST_MODE:
     #MODE = SUPERHEAVYSQUARE_MODE # katayori
     #MODE = NEWSQUAREPLUS_MODE # katayori
     #MODE = UAV4CUBET4_MODE
-    MODE = FACTORY_LIKE
+    #MODE = FACTORY_LIKE
+    MODE = NORMAL_GRID
 else:
     IS_RANDOM = True
     #MODE = HEAVYSQUARE_MODE
@@ -447,6 +477,16 @@ def map_maker():
             POSITIONDICT = FACTORY_POSITIONDICT
             IS_PICKUP = FACTORY_IS_PICKUP
             ROUTE = FACTORY_ROUTE
+    elif MODE == NORMAL_GRID:
+        '''
+        LEN_NODE = NORMAL_GRID_LEN_NODE
+        POST_PICKER_NODE = 0
+        CONNECTDICT = NORMAL_GRID_CONNECTDICT 
+        PHYSICAL_CONNECT_DICT = NORMAL_GRID_PHYSYCAL_CONNECT_DICT
+        POSITIONDICT = NORMAL_GRID_POSITIONDICT
+        '''
+        IS_PICKUP = FACTORY_IS_PICKUP #とりあえず適当な値を入れている
+        LEN_NODE, POST_PICKER_NODE, CONNECTDICT, PHYSICAL_CONNECT_DICT, POSITIONDICT = create_normal_undirected_graph(10, 10) #引数は(行数、列数)
         #print(IS_PICKUP)
         #print(ROUTE)
         
@@ -483,7 +523,7 @@ def map_maker():
         if SINGLE_TASK_MODE:
             ROUTE = task_assignment.make_task(LEN_NODE)
         else:
-            TASK_MANAGER = TaskManager(LEN_NODE, 15) #本当は「15」ではなく、「NUM_AGENTS」にしたい
+            TASK_MANAGER = TaskManager(LEN_NODE, 10, NODE_DISTANCES, ASSIGN_POLICY) #本当は数字はハードコーディングではなく、「NUM_AGENTS」にしたい
             TASK_MANAGER.reset_tasks()
             return (LEN_NODE, NODE_DISTANCES, CONNECTDICT, CONNECT_TO_DICT, COORD_LIST, WEIGHTS, ACTION_LIST, PICKER_NODE, IS_PICKUP, TASK_MANAGER)
     return (LEN_NODE, NODE_DISTANCES, CONNECTDICT, CONNECT_TO_DICT, COORD_LIST, WEIGHTS, ACTION_LIST, PICKER_NODE, IS_PICKUP, ROUTE)

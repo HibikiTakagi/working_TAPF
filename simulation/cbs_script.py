@@ -137,13 +137,14 @@ class Testing:
         print("初期のdest_state:", dest_state)
         print("初期のassigned_tasks(昇順):", sorted(self.env.robot_envs[0].assigned_task.assigned_tasks))
         '''
-        while not done and cnt_timestep < 20: #お試し用にタイムステップ数を減らしたい場合は変更。デフォルトは？
+        while not done and cnt_timestep < 50: #お試し用にタイムステップ数を減らしたい場合は変更。デフォルトは？
             cnt_timestep += 1
             #print("=============================================")
             #print(f"{cnt_timestep}タイムステップ目スタート")
             action = policy.greedy(current_state, dest_state)
             observation_next, reward, terminated, truncated, _ = self.env.step(action)
             #print(f"{cnt_timestep}ステップ目終了直後のtask_node:", np.array([self.env.robot_envs[agent].task_node for agent in range(self.env.num_agents)]))
+            #print(f"{cnt_timestep}ステップ目終了直後の予約可能ノード:", self.env.robot_envs[0].assigned_task.not_assigned_tasks)
             done = terminated or truncated
             rt += (GAMMA**self.env.num_steps)*reward
             rewards.append(reward)
@@ -187,7 +188,7 @@ class Testing:
         self.frame_flag = False
 
     def tentime_main(self):
-        CHECK_LOOP_NUM = 2 #お試し用にループ回数を減らしたい場合は変更。デフォルトは100
+        CHECK_LOOP_NUM = 10 #お試し用にループ回数を減らしたい場合は変更。デフォルトは100
         for i in tqdm(range(CHECK_LOOP_NUM)):
             self.main()
         self.frame_flag = True

@@ -156,7 +156,7 @@ class RobotEnvironment(gym.Env):
                 self.tasks_is_picking = self.is_pickup[self.robot_id]
             else:
                 #self.task_node = self.assigned_task.task_random_assign(self.robot_id)
-                self.task_node = self.assigned_task.reserve_next_task(self.robot_id)
+                self.task_node = self.assigned_task.reserve_next_task_random(self.robot_id) #この段階ではstate_nodeが割り当てられていない。
                 self.assigned_task.reserved_task_assign(self.robot_id)
                 self.tasks_is_picking = [False for _ in range(500)] # 500ではなく、本当はタスク列の長さが良い
         else:
@@ -207,7 +207,7 @@ class RobotEnvironment(gym.Env):
                 self.next_state = [self.state_node, self.task_id, self.pick_timer, self.task_timer, self.priority]
             else:
                 self.pick_timer = self.weights[self.task_node] if self.tasks_is_picking[0] else 0
-                self.nextdist = self.node_distances[self.state_node, self.assigned_task.reserve_next_task(self.robot_id)]
+                self.nextdist = self.node_distances[self.state_node, self.assigned_task.reserve_next_task(self.robot_id, self.state_node)]
                 self.curr_state = [self.state_node, self.task_node, self.pick_timer, self.task_timer, self.priority]
                 self.next_state = [self.state_node, self.task_node, self.pick_timer, self.task_timer, self.priority]
         else:
@@ -315,7 +315,7 @@ class RobotEnvironment(gym.Env):
                 if next_state_node == next_task_node and next_pick_timer == 0:
                     self.assigned_task.update_tasks(self.robot_id)
                     self.next_state[1] = self.assigned_task.reserved_task_assign(self.robot_id)
-                    self.assigned_task.reserve_next_task(self.robot_id)
+                    self.assigned_task.reserve_next_task(self.robot_id, self.state_node)
                 next_dest_node = self.assigned_task.reserved_task_checker[self.robot_id]
                 self.state_node = self.next_state[0]
                 self.task_node  = self.next_state[1]
@@ -495,7 +495,7 @@ class RobotEnvironment(gym.Env):
                     return [new_node, new_task_node, new_pick_timer, new_task_timer, new_priority]
                 ### curr_pick_timer = 0 の場合 ###
                 if curr_node == self.task_node:
-                    new_task_node  = self.assigned_task.reserve_next_task(self.robot_id)
+                    new_task_node  = self.assigned_task.reserve_next_task(self.robot_id, self.state_node)
                     self.task_node = new_task_node
                     new_task_timer = 1
                 else:
@@ -576,7 +576,8 @@ class RobotEnvironment(gym.Env):
             dest_node = self.tasks_node[task_id]
         if state_node == dest_node and pick_timer==0:
             if TASK_ASSIGN_MODE and not SINGLE_TASK_MODE:
-                dest_node = self.assigned_task.reserve_next_task(self.robot_id)
+                self.assigned_task.cancel_reserved_task(self.robot_id)
+                dest_node = self.assigned_task.reserve_next_task(self.robot_id, self.state_node)
             elif not TASK_ASSIGN_MODE:
                 task_id = task_id + 1
                 dest_node = self.tasks_node[task_id]
